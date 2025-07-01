@@ -1,0 +1,26 @@
+import React from 'react';
+import { Card, CardContent, Typography, useTheme } from '@mui/material';
+
+export default function MedianCard({ label, value, color, unit }) {
+    const theme = useTheme();
+    const display = typeof value === 'number' ? value.toLocaleString() : '—';
+
+    return (
+        <Card
+            elevation={4}
+            sx={{
+                background: `linear-gradient(135deg, ${theme.palette[color.split('.')[0]].light} 0%, ${theme.palette[color.split('.')[0]].main} 100%)`,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+            }}
+        >
+            <CardContent>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                    {label}
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                    {unit ? `${unit}${display}` : display}
+                </Typography>
+            </CardContent>
+        </Card>
+    );
+}

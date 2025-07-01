@@ -1,0 +1,438 @@
+[
+  {
+    "client_name": "Andrey Yelshyn",
+    "client_phone_number": "380964882862",
+    "crm_data": {
+      "last_purchase_date": "12-12-2024",
+      "last_purchase_cost": "2000",
+      "last_purchase_type": "cruise"
+    },
+    "conversations_data": {
+      "conversations_amount": 10,
+      "conversations_summary": "Client requested description of tour number 904. After that, asked for tours compilation in budget of 1000 euro. Manager asked for more details. Client told that wants USA cruise, and requires additional visa options. Manager told that will collect best offers for him",
+      "conversation_ending": 5,
+      "loyalty_mood": 5,
+      "topic": "tour",
+      "triggers": [
+        "manager_left_conversation"
+      ],
+      "manager_mark": 10,
+      "budget": 1000
+    },
+    "website_data": {
+      "tours_viewed": "USA Cruise",
+      "tours_viewed_number": 4
+    },
+    "marks": {
+      "like_to_engage": 4,
+      "like_to_purchase": 3,
+      "like_to_churn": 6,
+      "ltv": 1000
+    }
+  },
+  {
+    "client_name": "Olena Kovtun",
+    "client_phone_number": "380501234567",
+    "crm_data": {
+      "last_purchase_date": "18-06-2025",
+      "last_purchase_cost": "3200",
+      "last_purchase_type": "cruise"
+    },
+    "conversations_data": {
+      "conversations_amount": 8,
+      "conversations_summary": "Client inquired about corporate group rates for a Black Sea cruise for 20 people. Asked about onboard meeting rooms and catering options. Manager promised to send detailed pricing.",
+      "conversation_ending": 7,
+      "loyalty_mood": 8,
+      "topic": "partnership",
+      "triggers": [
+        "client_asked_discount"
+      ],
+      "manager_mark": 9,
+      "budget": 5000
+    },
+    "website_data": {
+      "tours_viewed": "Black Sea Corporate Cruise",
+      "tours_viewed_number": 3
+    },
+    "marks": {
+      "like_to_engage": 7,
+      "like_to_purchase": 6,
+      "like_to_churn": 3,
+      "ltv": 3200
+    }
+  },
+  {
+    "client_name": "Taras Bondar",
+    "client_phone_number": "380672345678",
+    "crm_data": {
+      "last_purchase_date": "05-03-2025",
+      "last_purchase_cost": "1500",
+      "last_purchase_type": "sea"
+    },
+    "conversations_data": {
+      "conversations_amount": 4,
+      "conversations_summary": "Client asked for small-group Mediterranean sea tour options under €1500. Manager requested travel dates. Client to confirm schedule.",
+      "conversation_ending": 6,
+      "loyalty_mood": 6,
+      "topic": "tour",
+      "triggers": [],
+      "manager_mark": 8,
+      "budget": 1500
+    },
+    "marks": {
+      "like_to_engage": 5,
+      "like_to_purchase": 4,
+      "like_to_churn": 5,
+      "ltv": 1500
+    }
+  },
+  {
+    "client_name": "Kateryna Shevchenko",
+    "client_phone_number": "380931112233",
+    "conversations_data": {
+      "conversations_amount": 3,
+      "conversations_summary": "Client had questions about Schengen visa requirements for a Baltic Sea cruise. Manager provided document checklist and asked if client needs visa support service.",
+      "conversation_ending": 7,
+      "loyalty_mood": 6,
+      "topic": "current_questions",
+      "triggers": [
+        "manager_changed"
+      ],
+      "manager_mark": 8,
+      "budget": 0
+    },
+    "website_data": {
+      "tours_viewed": "Baltic Sea Cruise",
+      "tours_viewed_number": 2
+    },
+    "marks": {
+      "like_to_engage": 6,
+      "like_to_purchase": 3,
+      "like_to_churn": 4,
+      "ltv": 0
+    }
+  },
+  {
+    "client_name": "Mykhailo Holub",
+    "client_phone_number": "380971234890",
+    "conversations_data": {
+      "conversations_amount": 7,
+      "conversations_summary": "Client expressed interest in joining our affiliate program to promote tours. Asked about commission rates and marketing materials. Manager to send partnership agreement.",
+      "conversation_ending": 6,
+      "loyalty_mood": 8,
+      "topic": "partnership",
+      "triggers": [
+        "client_commented_on_blog"
+      ],
+      "manager_mark": 9,
+      "budget": 0
+    },
+    "marks": {
+      "like_to_engage": 9,
+      "like_to_purchase": 5,
+      "like_to_churn": 2,
+      "ltv": 0
+    }
+  },
+  {
+    "client_name": "Sofiya Melnyk",
+    "client_phone_number": "380501112345",
+    "crm_data": {
+      "last_purchase_date": "20-11-2024",
+      "last_purchase_cost": "2500",
+      "last_purchase_type": "cruise"
+    },
+    "conversations_data": {
+      "conversations_amount": 5,
+      "conversations_summary": "Client asked to extend her Mediterranean cruise booking to include a Sicily shore excursion. Manager is checking availability and additional costs.",
+      "conversation_ending": 4,
+      "loyalty_mood": 3,
+      "topic": "tour",
+      "triggers": [
+        "client_left_conversation"
+      ],
+      "manager_mark": 6,
+      "budget": 2000
+    },
+    "marks": {
+      "like_to_engage": 5,
+      "like_to_purchase": 7,
+      "like_to_churn": 4,
+      "ltv": 2500
+    }
+  },
+  {
+    "client_name": "Olena Petrenko",
+    "client_phone_number": "380671234567",
+    "conversations_data": {
+      "conversations_amount": 6,
+      "conversations_summary": "Client inquired about budget-friendly sea tours in Turkey. Manager provided options and asked about preferred departure dates. Client needs to confirm with spouse.",
+      "conversation_ending": 7,
+      "loyalty_mood": 6,
+      "topic": "tour",
+      "triggers": [
+        "sent_follow_up"
+      ],
+      "manager_mark": 8,
+      "budget": 1500
+    },
+    "website_data": {
+      "tours_viewed": "Turkey Sea Tour",
+      "tours_viewed_number": 2
+    },
+    "marks": {
+      "like_to_engage": 7,
+      "like_to_purchase": 5,
+      "like_to_churn": 4,
+      "ltv": 1500
+    }
+  },
+  {
+    "client_name": "Taras Shevchenko",
+    "client_phone_number": "380501112233",
+    "crm_data": {
+      "last_purchase_date": "10-11-2024",
+      "last_purchase_cost": "3000",
+      "last_purchase_type": "sea"
+    },
+    "conversations_data": {
+      "conversations_amount": 8,
+      "conversations_summary": "Client requested detailed itinerary for a Mediterranean cruise. Manager provided itinerary and shore excursion options. Client asked about visa requirements.",
+      "conversation_ending": 6,
+      "loyalty_mood": 7,
+      "topic": "current_questions",
+      "triggers": [
+        "manager_left_conversation"
+      ],
+      "manager_mark": 9,
+      "budget": 3000
+    },
+    "marks": {
+      "like_to_engage": 8,
+      "like_to_purchase": 6,
+      "like_to_churn": 3,
+      "ltv": 3000
+    }
+  },
+  {
+    "client_name": "Natalia Kovalenko",
+    "client_phone_number": "380631234890",
+    "crm_data": {
+      "last_purchase_date": "05-05-2025",
+      "last_purchase_cost": "1200",
+      "last_purchase_type": "cruise"
+    },
+    "conversations_data": {
+      "conversations_amount": 5,
+      "conversations_summary": "Client was interested in a last-minute sea tour to Greece. Manager checked availability and offered an early-booking discount. Client will decide after the weekend.",
+      "conversation_ending": 8,
+      "loyalty_mood": 9,
+      "topic": "tour",
+      "triggers": [
+        "discount_offered"
+      ],
+      "manager_mark": 7,
+      "budget": 2000
+    },
+    "website_data": {
+      "tours_viewed": "Greece Sea Tour",
+      "tours_viewed_number": 3
+    },
+    "marks": {
+      "like_to_engage": 9,
+      "like_to_purchase": 7,
+      "like_to_churn": 2,
+      "ltv": 2200
+    }
+  },
+  {
+    "client_name": "Dmytro Ivanov",
+    "client_phone_number": "380681234567",
+    "conversations_data": {
+      "conversations_amount": 3,
+      "conversations_summary": "Client asked about partnership opportunities. Manager provided company profile and partnership terms. Client to review internally.",
+      "conversation_ending": 4,
+      "loyalty_mood": 4,
+      "topic": "partnership",
+      "triggers": [
+        "follow_up_needed"
+      ],
+      "manager_mark": 6,
+      "budget": 0
+    },
+    "marks": {
+      "like_to_engage": 5,
+      "like_to_purchase": 1,
+      "like_to_churn": 5,
+      "ltv": 0
+    }
+  },
+  {
+    "client_name": "Iryna Melnyk",
+    "client_phone_number": "380997771234",
+    "crm_data": {
+      "last_purchase_date": "20-06-2025",
+      "last_purchase_cost": "500",
+      "last_purchase_type": "sea"
+    },
+    "conversations_data": {
+      "conversations_amount": 7,
+      "conversations_summary": "Client browsed introductory sea tours and asked about family packages. Manager provided family-friendly options and pricing. Client interested in summer dates.",
+      "conversation_ending": 9,
+      "loyalty_mood": 8,
+      "topic": "current_questions",
+      "triggers": [
+        "promo_sent"
+      ],
+      "manager_mark": 9,
+      "budget": 800
+    },
+    "website_data": {
+      "tours_viewed": "Family Sea Tours",
+      "tours_viewed_number": 5
+    },
+    "marks": {
+      "like_to_engage": 8,
+      "like_to_purchase": 6,
+      "like_to_churn": 3,
+      "ltv": 1300
+    }
+  },
+  {
+    "client_name": "Olena Kovalenko",
+    "client_phone_number": "380501234567",
+    "crm_data": {
+      "last_purchase_date": "05-06-2025",
+      "last_purchase_cost": "1500",
+      "last_purchase_type": "sea"
+    },
+    "conversations_data": {
+      "conversations_amount": 7,
+      "conversations_summary": "Client inquired about a Mediterranean sea tour, asked for cabin upgrade options. Manager provided pricing and departure dates.",
+      "conversation_ending": 6,
+      "loyalty_mood": 8,
+      "topic": "tour",
+      "triggers": [
+        "manager_shared_itinerary"
+      ],
+      "manager_mark": 9,
+      "budget": 2000
+    },
+    "website_data": {
+      "tours_viewed": "Mediterranean Sea Tour",
+      "tours_viewed_number": 3
+    },
+    "marks": {
+      "like_to_engage": 8,
+      "like_to_purchase": 6,
+      "like_to_churn": 2,
+      "ltv": 1500
+    }
+  },
+  {
+    "client_name": "Bohdan Shevchenko",
+    "client_phone_number": "380632345678",
+    "crm_data": {
+      "last_purchase_date": "20-11-2024",
+      "last_purchase_cost": "800",
+      "last_purchase_type": "sea"
+    },
+    "conversations_data": {
+      "conversations_amount": 3,
+      "conversations_summary": "Client asked for budget-friendly sea tours under €1000. Manager requested travel dates and preferences.",
+      "conversation_ending": 4,
+      "loyalty_mood": 6,
+      "topic": "tour",
+      "triggers": [
+        "asked_pricing_details"
+      ],
+      "manager_mark": 7,
+      "budget": 1000
+    },
+    "marks": {
+      "like_to_engage": 5,
+      "like_to_purchase": 4,
+      "like_to_churn": 5,
+      "ltv": 800
+    }
+  },
+  {
+    "client_name": "Svitlana Mykytiuk",
+    "client_phone_number": "380673456789",
+    "conversations_data": {
+      "conversations_amount": 6,
+      "conversations_summary": "Client proposed a partnership as a travel blogger, asked about affiliate program details. Manager sent proposal document.",
+      "conversation_ending": 7,
+      "loyalty_mood": 8,
+      "topic": "partnership",
+      "triggers": [
+        "sent_proposal"
+      ],
+      "manager_mark": 9,
+      "budget": 0
+    },
+    "website_data": {
+      "tours_viewed": "USA Cruise",
+      "tours_viewed_number": 2
+    },
+    "marks": {
+      "like_to_engage": 9,
+      "like_to_purchase": 0,
+      "like_to_churn": 3,
+      "ltv": 0
+    }
+  },
+  {
+    "client_name": "Yaroslav Petrenko",
+    "client_phone_number": "380975312468",
+    "crm_data": {
+      "last_purchase_date": "15-01-2025",
+      "last_purchase_cost": "2200",
+      "last_purchase_type": "cruise"
+    },
+    "conversations_data": {
+      "conversations_amount": 8,
+      "conversations_summary": "Client requested details on Alaskan cruise itineraries and visa assistance. Manager provided documents and next steps.",
+      "conversation_ending": 6,
+      "loyalty_mood": 7,
+      "topic": "tour",
+      "triggers": [
+        "manager_provided_extra_docs"
+      ],
+      "manager_mark": 8,
+      "budget": 2500
+    },
+    "website_data": {
+      "tours_viewed": "Alaskan Cruise",
+      "tours_viewed_number": 5
+    },
+    "marks": {
+      "like_to_engage": 7,
+      "like_to_purchase": 6,
+      "like_to_churn": 4,
+      "ltv": 2200
+    }
+  },
+  {
+    "client_name": "Kateryna Bondarenko",
+    "client_phone_number": "380931224466",
+    "conversations_data": {
+      "conversations_amount": 2,
+      "conversations_summary": "Client asked about the refund policy for cancelled tours. Manager apologized for the delay and explained terms.",
+      "conversation_ending": 3,
+      "loyalty_mood": 4,
+      "topic": "current_questions",
+      "triggers": [
+        "manager_delayed_response"
+      ],
+      "manager_mark": 5,
+      "budget": 0
+    },
+    "marks": {
+      "like_to_engage": 3,
+      "like_to_purchase": 1,
+      "like_to_churn": 8,
+      "ltv": 0
+    }
+  }
+]
