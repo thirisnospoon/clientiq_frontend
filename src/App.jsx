@@ -8,6 +8,7 @@ import {
     Paper,
     Box,
     useTheme,
+    useMediaQuery,
 } from "@mui/material";
 
 import marksStats           from "./data/marks_stats_data.json";
@@ -17,17 +18,15 @@ import retentionRateData    from "./data/retention_rate_data.json";
 import dayjs              from "dayjs";
 import customParseFormat  from "dayjs/plugin/customParseFormat";
 
-// components
 import MedianCard           from "./components/MedianCards.jsx";
 import ClientFilters        from "./components/ClientFilters.jsx";
 import ClientsTable         from "./components/ClientsTable.jsx";
 import MarksDiagram         from "./components/MarksDiagram.jsx";
 import TotalClientsDiagram  from "./components/TotalClientsDiagram.jsx";
-import RetentionRateDiagram from "./components/RetentionRateDiagram.jsx";  // ← НОВИЙ імпорт
+import RetentionRateDiagram from "./components/RetentionRateDiagram.jsx";
 
 dayjs.extend(customParseFormat);
 
-// KPI / Metric configuration
 const metrics = [
     { key: "total_clients",    label: "Total Clients",          color: "primary.main"   },
     { key: "like_to_engage",   label: "Likelihood to Engage",   color: "info.main"      },
@@ -37,9 +36,10 @@ const metrics = [
 ];
 
 export default function App() {
-    const theme = useTheme();
+    const theme     = useTheme();
+    const isMobile  = useMediaQuery(theme.breakpoints.down("sm"));
 
-    /* ---------- 1) Нормалізація клієнтів ---------- */
+    /* ---------- 1) normalize clients ---------- */
     const clientsData = useMemo(
         () =>
             rawClientsData.map((c) => ({
@@ -61,7 +61,7 @@ export default function App() {
         []
     );
 
-    /* ---------- 2) Динамічний max для LTV ---------- */
+    /* ---------- 2) dynamic max LTV ---------- */
     const maxLtv = useMemo(
         () => Math.max(0, ...clientsData.map((c) => c.marks.ltv)),
         [clientsData]
@@ -77,19 +77,18 @@ export default function App() {
         [maxLtv]
     );
 
-    /* ---------- 3) Діапазон дат ---------- */
+    /* ---------- 3) date range ---------- */
     const fullClientDateRange = useMemo(() => {
-        const validDates = clientsData
+        const valid = clientsData
             .map((c) => (c.crm_data.last_purchase_date ? dayjs(c.crm_data.last_purchase_date, "DD-MM-YYYY") : null))
             .filter((d) => d && d.isValid());
 
-        if (!validDates.length) {
+        if (!valid.length) {
             const today = dayjs();
             return { start: today, end: today };
         }
-
-        const start = validDates.reduce((min, d) => (d.isBefore(min) ? d : min), validDates[0]);
-        const end   = validDates.reduce((max, d) => (d.isAfter(max) ? d : max), validDates[0]);
+        const start = valid.reduce((min, d) => (d.isBefore(min) ? d : min), valid[0]);
+        const end   = valid.reduce((max, d) => (d.isAfter(max) ? d : max), valid[0]);
         return { start, end };
     }, [clientsData]);
 
@@ -110,20 +109,19 @@ export default function App() {
                 const p = dayjs(c.crm_data.last_purchase_date, "DD-MM-YYYY");
                 inDate = !p.isBefore(clientFilters.date.start) && !p.isAfter(clientFilters.date.end);
             }
-
             const m = c.marks;
             const f = clientFilters.marks;
-            const inMarks =
+            return (
+                inDate &&
                 m.like_to_engage   >= f.like_to_engage[0]   && m.like_to_engage   <= f.like_to_engage[1] &&
                 m.like_to_purchase >= f.like_to_purchase[0] && m.like_to_purchase <= f.like_to_purchase[1] &&
                 m.like_to_churn    >= f.like_to_churn[0]    && m.like_to_churn    <= f.like_to_churn[1] &&
-                m.ltv              >= f.ltv[0]              && m.ltv              <= f.ltv[1];
-
-            return inDate && inMarks;
+                m.ltv              >= f.ltv[0]              && m.ltv              <= f.ltv[1]
+            );
         });
     }, [clientsData, clientFilters]);
 
-    /* ---------- 4) Дані для Total Clients ---------- */
+    /* ---------- 4) total clients ---------- */
     const totalClientsChartData = useMemo(() => {
         const cats = marksStats.total_clients.by_categories;
         return [
@@ -139,15 +137,13 @@ export default function App() {
         theme.palette.success.main,
     ];
 
-    /* ---------- 5) Дані для Cohort Retention ---------- */
-    const retentionChartData = useMemo(() =>
-            retentionRateData.cohort_yearly_retention.map(({ year, rate }) => ({
-                year: year.toString(),
-                rate,
-            }))
-        , []);
+    /* ---------- 5) cohort retention ---------- */
+    const retentionChartData = useMemo(
+        () => retentionRateData.cohort_yearly_retention.map(({ year, rate }) => ({ year: `${year}`, rate })),
+        []
+    );
 
-    /* ---------- 6) Render ---------- */
+    /* ---------- 6) render ---------- */
     return (
         <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
             <AppBar position="static" elevation={2}>
@@ -158,11 +154,11 @@ export default function App() {
                 </Toolbar>
             </AppBar>
 
-            <Container maxWidth="lg" sx={{ py: 4, flexGrow: 1 }}>
+            <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 4, flexGrow: 1 }}>
                 {/* KPI cards */}
-                <Grid container spacing={3} mb={4}>
+                <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 3 : 4}>
                     {metrics.map(({ key, label, color }) => (
-                        <Grid item xs={12} sm={6} md={2.4} key={key}>
+                        <Grid item xs={6} sm={4} md={2.4} key={key}>
                             <MedianCard
                                 label={label}
                                 value={marksStats[key]?.total ?? "—"}
@@ -172,61 +168,63 @@ export default function App() {
                     ))}
                 </Grid>
 
-                {/* ► Total Clients та Cohort Retention в одному ряді ◄ */}
-                <Grid container spacing={3} mb={4}>
-                    <Grid item xs={12} md={6}>
-                        <Paper sx={{ p: 3, height: "100%" }} elevation={3}>
+                {/* ► TWO CHARTS IN ONE ROW EVEN ON MOBILE ◄ */}
+                <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 3 : 4}>
+                    <Grid item xs={6} md={6}>
+                        <Paper sx={{ p: isMobile ? 2 : 3, height: "100%" }} elevation={3}>
                             <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
                                 Total Clients – Distribution
                             </Typography>
                             <TotalClientsDiagram
                                 data={totalClientsChartData}
                                 colors={totalClientsColors}
+                                height={isMobile ? 200 : 300}
                             />
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
-                        <Paper sx={{ p: 3, height: "100%" }} elevation={3}>
+                    <Grid item xs={6} md={6}>
+                        <Paper sx={{ p: isMobile ? 2 : 3, height: "100%" }} elevation={3}>
                             <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
                                 Cohort Retention (2019 → 2025)
                             </Typography>
                             <RetentionRateDiagram
                                 data={retentionChartData}
                                 strokeColor={theme.palette.primary.main}
+                                height={isMobile ? 200 : 300}
                             />
                         </Paper>
                     </Grid>
                 </Grid>
 
-                {/* Diagrams – без total_clients */}
-                <Grid container spacing={3} mb={4}>
-                    {metrics
-                        .filter(({ key }) => key !== "total_clients")
-                        .map(({ key, label, color }) => (
-                            <Grid key={key} item xs={12} md={6}>
-                                <Paper sx={{ p: 3, height: "100%" }} elevation={3}>
-                                    <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
-                                        {label}
-                                    </Typography>
-                                    <MarksDiagram
-                                        data={marksStats[key].by_marks}
-                                        fillColor={theme.palette[color.split(".")[0]].main}
-                                    />
-                                </Paper>
-                            </Grid>
-                        ))}
+                {/* other diagrams */}
+                <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 3 : 4}>
+                    {metrics.filter(({ key }) => key !== "total_clients").map(({ key, label, color }) => (
+                        <Grid item xs={12} md={6} key={key}>
+                            <Paper sx={{ p: isMobile ? 2 : 3, height: "100%" }} elevation={3}>
+                                <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
+                                    {label}
+                                </Typography>
+                                <MarksDiagram
+                                    data={marksStats[key].by_marks}
+                                    fillColor={theme.palette[color.split(".")[0]].main}
+                                    height={isMobile ? 180 : 220}
+                                />
+                            </Paper>
+                        </Grid>
+                    ))}
                 </Grid>
 
-                {/* Filters + table */}
-                <Grid container spacing={3}>
+                {/* filters + table */}
+                <Grid container spacing={isMobile ? 2 : 3}>
                     <Grid item xs={12}>
                         <ClientFilters
                             markMeta={markMeta}
                             filters={clientFilters}
                             onChange={setClientFilters}
+                            mobile={isMobile}
                         />
-                        <ClientsTable clients={filteredClients} />
+                        <ClientsTable clients={filteredClients} mobile={isMobile} />
                     </Grid>
                 </Grid>
             </Container>

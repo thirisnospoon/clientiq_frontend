@@ -12,12 +12,13 @@ import {
 
 /**
  * props:
- *   data        – масив об’єктів { year, rate }
+ *   data        – масив { year, rate }
  *   strokeColor – колір лінії
+ *   height      – висота графіку
  */
-export default function RetentionRateDiagram({ data, strokeColor }) {
+export default function RetentionRateDiagram({ data, strokeColor, height = 300 }) {
     return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={height}>
             <LineChart
                 data={data}
                 margin={{ top: 5, right: 20, left: 0, bottom: 5 }}

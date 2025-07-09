@@ -9,12 +9,18 @@ import {
     CartesianGrid,
 } from "recharts";
 
-export default function MarksDiagram({ data, fillColor }) {
-    // Convert numeric mark to string so XAxis shows 1‑10 nicely
+/**
+ * props:
+ *   data      – масив { mark, clients }
+ *   fillColor – колір стовпців
+ *   height    – висота графіку
+ */
+export default function MarksDiagram({ data, fillColor, height = 220 }) {
+    // Convert numeric mark to string so XAxis shows 1-10 nicely
     const chartData = data.map(({ mark, clients }) => ({ mark: mark.toString(), clients }));
 
     return (
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={height}>
             <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey="mark" tick={{ fontSize: 12 }} />
