@@ -157,15 +157,30 @@ export default function App() {
             <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 4, flexGrow: 1 }}>
                 {/* KPI cards */}
                 <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 3 : 4}>
-                    {metrics.map(({ key, label, color }) => (
-                        <Grid item xs={6} sm={4} md={2.4} key={key}>
-                            <MedianCard
-                                label={label}
-                                value={marksStats[key]?.total ?? "—"}
-                                color={color}
-                            />
-                        </Grid>
-                    ))}
+                    {metrics.map(({ key, label, color }) => {
+                        // ---------- details for pop-up ----------
+                        const details =
+                            key === "total_clients"
+                                ? [
+                                    { label: "Not identified", value: marksStats.total_clients.by_categories.not_identified },
+                                    { label: "Identified",     value: marksStats.total_clients.by_categories.identified     },
+                                    { label: "Purchased",      value: marksStats.total_clients.by_categories.purchased      },
+                                ]
+                                : marksStats[key].by_marks.map(({ mark, clients }) => ({
+                                    label: mark,
+                                    value: clients,
+                                }));
+                        return (
+                            <Grid item xs={6} sm={4} md={2.4} key={key}>
+                                <MedianCard
+                                    label={label}
+                                    value={marksStats[key]?.total ?? "—"}
+                                    color={color}
+                                    details={details}
+                                />
+                            </Grid>
+                        );
+                    })}
                 </Grid>
 
                 {/* ► TWO CHARTS IN ONE ROW EVEN ON MOBILE ◄ */}

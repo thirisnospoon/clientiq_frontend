@@ -10,32 +10,53 @@ import {
 import { DataGrid } from "@mui/x-data-grid";
 import ClientDetailsDialog from "./ClientDetailsDialog";
 
-/* progress-bar cell with value on hover */
+/* progress–cell: fills entire cell, shows bar normally, fades to number on hover */
 const MarkCell = ({ value, max, color }) => {
-    const [hovered, setHovered] = useState(false);
     const perc = max > 0 ? (value / max) * 100 : 0;
 
     return (
         <Box
-            width="100%"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            sx={{
+                width: "100%",
+                height: "100%",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+
+                /* fade out bar, fade in label when hovering anywhere in the cell */
+                "&:hover .progress": { opacity: 0 },
+                "&:hover .label":    { opacity: 1 },
+            }}
         >
-            {hovered ? (
-                <Typography variant="body2" align="center">
-                    {value}
-                </Typography>
-            ) : (
-                <LinearProgress
-                    variant="determinate"
-                    value={perc}
-                    sx={{
-                        height: 6,
-                        borderRadius: 4,
-                        "& .MuiLinearProgress-bar": { backgroundColor: color.main },
-                    }}
-                />
-            )}
+            <LinearProgress
+                className="progress"
+                variant="determinate"
+                value={perc}
+                sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: 0,
+                    width: "100%",
+                    height: 6,
+                    transform: "translateY(-50%)",
+                    borderRadius: 4,
+                    transition: "opacity 0.2s",
+                    "& .MuiLinearProgress-bar": { backgroundColor: color.main },
+                }}
+            />
+
+            <Typography
+                className="label"
+                variant="body2"
+                sx={{
+                    zIndex: 1,
+                    opacity: 0,
+                    transition: "opacity 0.2s",
+                }}
+            >
+                {value}
+            </Typography>
         </Box>
     );
 };
@@ -45,7 +66,7 @@ export default function ClientsTable({ clients, mobile }) {
     const isMobile  = mobile ?? useMediaQuery(theme.breakpoints.down("sm"));
     const [selected, setSelected] = useState(null);
 
-    /* max LTV */
+    /* compute max LTV for 100% bar width */
     const maxLtv = useMemo(
         () => Math.max(0, ...clients.map((c) => c.marks?.ltv ?? 0)),
         [clients]
@@ -58,7 +79,6 @@ export default function ClientsTable({ clients, mobile }) {
         ltv:              theme.palette.secondary,
     };
 
-    /* rows */
     const rows = clients.map((c, id) => ({
         id,
         client_name:          c.client_name,
@@ -77,8 +97,13 @@ export default function ClientsTable({ clients, mobile }) {
         headerName: label,
         width: 120,
         sortable: false,
-        renderCell: ({ value }) => (
-            <MarkCell value={value} max={max} color={paletteFor[field]} />
+        renderCell: (params) => (
+            <MarkCell
+                key={`${params.id}-${field}`}
+                value={params.value}
+                max={max}
+                color={paletteFor[field]}
+            />
         ),
     });
 
@@ -100,7 +125,6 @@ export default function ClientsTable({ clients, mobile }) {
                 Clients
             </Typography>
 
-            {/* горизонтальний скрол */}
             <Box sx={{ width: "100%", overflowX: "auto" }}>
                 <Box sx={{ minWidth: 900 }}>
                     <DataGrid
