@@ -1,23 +1,26 @@
-import React from 'react';
-import { Card, CardContent, Typography, useTheme } from '@mui/material';
+import React from "react";
+import { Card, CardContent, Typography, useTheme } from "@mui/material";
 
 export default function MedianCard({ label, value, color, unit }) {
     const theme = useTheme();
-    const display = typeof value === 'number' ? value.toLocaleString() : '—';
+    const display = typeof value === "number" ? value.toLocaleString() : "—";
+
+    // Derive palette base (e.g. "info" from "info.main")
+    const base = color.split(".")[0];
 
     return (
         <Card
             elevation={4}
             sx={{
-                background: `linear-gradient(135deg, ${theme.palette[color.split('.')[0]].light} 0%, ${theme.palette[color.split('.')[0]].main} 100%)`,
-                color: theme.palette.getContrastText(theme.palette.primary.main),
+                background: `linear-gradient(135deg, ${theme.palette[base].light} 0%, ${theme.palette[base].main} 100%)`,
+                color: theme.palette.getContrastText(theme.palette[base].main),
             }}
         >
             <CardContent>
                 <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
                     {label}
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                     {unit ? `${unit}${display}` : display}
                 </Typography>
             </CardContent>

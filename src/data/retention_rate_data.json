@@ -1,0 +1,40 @@
+{
+  "cohort_year": 2019,
+  "initial_customers": 1000,
+  "retention_12_months": {
+    "customers": 600,
+    "rate": 60.0
+  },
+  "cohort_yearly_retention": [
+    {
+      "year": 2020,
+      "customers": 600,
+      "rate": 60.0
+    },
+    {
+      "year": 2021,
+      "customers": 550,
+      "rate": 55.0
+    },
+    {
+      "year": 2022,
+      "customers": 500,
+      "rate": 50.0
+    },
+    {
+      "year": 2023,
+      "customers": 450,
+      "rate": 55.0
+    },
+    {
+      "year": 2024,
+      "customers": 400,
+      "rate": 40.0
+    },
+    {
+      "year": 2025,
+      "customers": 350,
+      "rate": 45.0
+    }
+  ]
+}

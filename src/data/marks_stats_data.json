@@ -1,0 +1,70 @@
+{
+  "total_clients": {
+    "total": 3000,
+    "by_categories": {
+      "not_identified": 1000,
+      "identified": 1000,
+      "purchased": 1000
+    }
+  },
+  "like_to_engage": {
+    "total": 3000,
+    "by_marks": [
+      { "mark": 1,  "clients": 60 },
+      { "mark": 2,  "clients": 120 },
+      { "mark": 3,  "clients": 240 },
+      { "mark": 4,  "clients": 360 },
+      { "mark": 5,  "clients": 540 },
+      { "mark": 6,  "clients": 600 },
+      { "mark": 7,  "clients": 480 },
+      { "mark": 8,  "clients": 300 },
+      { "mark": 9,  "clients": 180 },
+      { "mark": 10, "clients": 120 }
+    ]
+  },
+  "like_to_purchase": {
+    "total": 3000,
+    "by_marks": [
+      { "mark": 1,  "clients": 50 },
+      { "mark": 2,  "clients": 150 },
+      { "mark": 3,  "clients": 250 },
+      { "mark": 4,  "clients": 350 },
+      { "mark": 5,  "clients": 450 },
+      { "mark": 6,  "clients": 600 },
+      { "mark": 7,  "clients": 500 },
+      { "mark": 8,  "clients": 300 },
+      { "mark": 9,  "clients": 200 },
+      { "mark": 10, "clients": 150 }
+    ]
+  },
+  "like_to_churn": {
+    "total": 3000,
+    "by_marks": [
+      { "mark": 1,  "clients": 700 },
+      { "mark": 2,  "clients": 600 },
+      { "mark": 3,  "clients": 500 },
+      { "mark": 4,  "clients": 400 },
+      { "mark": 5,  "clients": 250 },
+      { "mark": 6,  "clients": 200 },
+      { "mark": 7,  "clients": 150 },
+      { "mark": 8,  "clients": 100 },
+      { "mark": 9,  "clients": 75 },
+      { "mark": 10, "clients": 25 }
+    ]
+  },
+  "ltv": {
+    "total": 3000,
+    "by_marks": [
+      { "mark": 1,  "clients": 100 },
+      { "mark": 2,  "clients": 200 },
+      { "mark": 3,  "clients": 400 },
+      { "mark": 4,  "clients": 600 },
+      { "mark": 5,  "clients": 700 },
+      { "mark": 6,  "clients": 500 },
+      { "mark": 7,  "clients": 300 },
+      { "mark": 8,  "clients": 100 },
+      { "mark": 9,  "clients": 70 },
+      { "mark": 10, "clients": 30 }
+    ]
+  }
+}
