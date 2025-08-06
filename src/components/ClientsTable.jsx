@@ -8,9 +8,8 @@ import {
     useMediaQuery,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import ClientDetailsDialog from "./ClientDetailsDialog";
+import ClientDetailsDialog from "./ClientDetailsDialog.jsx";
 
-/* progress–cell: fills entire cell, shows bar normally, fades to number on hover */
 const MarkCell = ({ value, max, color }) => {
     const perc = max > 0 ? (value / max) * 100 : 0;
 
@@ -23,8 +22,6 @@ const MarkCell = ({ value, max, color }) => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-
-                /* fade out bar, fade in label when hovering anywhere in the cell */
                 "&:hover .progress": { opacity: 0 },
                 "&:hover .label":    { opacity: 1 },
             }}
@@ -46,15 +43,7 @@ const MarkCell = ({ value, max, color }) => {
                 }}
             />
 
-            <Typography
-                className="label"
-                variant="body2"
-                sx={{
-                    zIndex: 1,
-                    opacity: 0,
-                    transition: "opacity 0.2s",
-                }}
-            >
+            <Typography className="label" variant="body2" sx={{ zIndex: 1, opacity: 0, transition: "opacity 0.2s" }}>
                 {value}
             </Typography>
         </Box>
@@ -62,15 +51,11 @@ const MarkCell = ({ value, max, color }) => {
 };
 
 export default function ClientsTable({ clients, mobile }) {
-    const theme     = useTheme();
-    const isMobile  = mobile ?? useMediaQuery(theme.breakpoints.down("sm"));
+    const theme    = useTheme();
+    const isMobile = mobile ?? useMediaQuery(theme.breakpoints.down("sm"));
     const [selected, setSelected] = useState(null);
 
-    /* compute max LTV for 100% bar width */
-    const maxLtv = useMemo(
-        () => Math.max(0, ...clients.map((c) => c.marks?.ltv ?? 0)),
-        [clients]
-    );
+    const maxLtv = useMemo(() => Math.max(0, ...clients.map((c) => c.marks?.ltv ?? 0)), [clients]);
 
     const paletteFor = {
         like_to_engage:   theme.palette.info,
@@ -79,18 +64,23 @@ export default function ClientsTable({ clients, mobile }) {
         ltv:              theme.palette.secondary,
     };
 
-    const rows = clients.map((c, id) => ({
-        id,
-        client_name:          c.client_name,
-        client_phone_number:  c.client_phone_number,
-        last_purchase_date:   c.crm_data.last_purchase_date,
-        last_purchase_cost:   c.crm_data.last_purchase_cost,
-        last_purchase_type:   c.crm_data.last_purchase_type,
-        ...c.marks,
-        _raw: c,
+    const rows = clients.map((c) => ({
+        id:                  c.id,
+        client_name:         c.client_name,
+        client_phone_number: c.client_phone_number,
+        last_purchase_date:  c.crm_data.last_purchase_date,
+        last_purchase_cost:  c.crm_data.last_purchase_cost,
+        last_purchase_type:  c.crm_data.last_purchase_type,
+        ...c.marks,                       // для стовпчиків
+        _preview: {                       // лише базове для швидкого відкриття
+            id:     c.id,
+            name:   c.client_name,
+            phone:  c.client_phone_number,
+            marks:  c.marks,
+        },
     }));
 
-    const handleRowClick = ({ row }) => setSelected(row._raw);
+    const handleRowClick = ({ row }) => setSelected(row._preview);
 
     const markCol = (field, label, max = 10) => ({
         field,
@@ -98,12 +88,7 @@ export default function ClientsTable({ clients, mobile }) {
         width: 120,
         sortable: false,
         renderCell: (params) => (
-            <MarkCell
-                key={`${params.id}-${field}`}
-                value={params.value}
-                max={max}
-                color={paletteFor[field]}
-            />
+            <MarkCell key={`${params.id}-${field}`} value={params.value} max={max} color={paletteFor[field]} />
         ),
     });
 
@@ -157,11 +142,7 @@ export default function ClientsTable({ clients, mobile }) {
                 </Box>
             </Box>
 
-            <ClientDetailsDialog
-                open={Boolean(selected)}
-                client={selected}
-                onClose={() => setSelected(null)}
-            />
+            <ClientDetailsDialog open={Boolean(selected)} client={selected} onClose={() => setSelected(null)} />
         </Paper>
     );
 }

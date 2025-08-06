@@ -1,116 +1,130 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    IconButton,
-    Box,
-    Grid,
-    Typography,
-    Paper,
-    Divider,
-    CircularProgress,
-    Avatar,
-    useMediaQuery
+    Dialog, DialogTitle, DialogContent, IconButton, Box, Grid, Typography,
+    Paper, Divider, CircularProgress, Avatar, Tooltip, Chip,
+    Accordion, AccordionSummary, AccordionDetails, useMediaQuery
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import PhoneIcon from "@mui/icons-material/Phone";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import PublicIcon from "@mui/icons-material/Public";
-import ChatIcon from "@mui/icons-material/Chat";
-import { motion } from "framer-motion";
-import { useTheme } from "@mui/material/styles";
+import CloseIcon         from "@mui/icons-material/Close";
+import PhoneIcon         from "@mui/icons-material/Phone";
+import ShoppingCartIcon  from "@mui/icons-material/Euro";
+import PublicIcon        from "@mui/icons-material/Public";
+import ChatIcon          from "@mui/icons-material/Chat";
+import HistoryIcon       from "@mui/icons-material/History";
+import ExpandMoreIcon    from "@mui/icons-material/ExpandMore";
+import { motion }        from "framer-motion";
+import { useTheme }      from "@mui/material/styles";
+import dayjs             from "dayjs";
 
-// Configuration for KPI visualization
+import { fetchClient }   from "../api/client.js";
+
+/* ---------- KPI CONFIG ---------- */
 const MARK_CONFIG = {
-    like_to_engage: { label: "Engage", color: "#0288d1", max: 10 },
-    like_to_purchase: { label: "Purchase", color: "#43a047", max: 10 },
-    like_to_churn: { label: "Churn", color: "#a5b127", max: 10 },
-    ltv: { label: "LTV (€)", color: "#ff5722", max: 20000 }
+    like_to_engage:   { label:"Engage",   color:"#0288d1", max:10 },
+    like_to_purchase: { label:"Purchase", color:"#43a047", max:10 },
+    like_to_churn:    { label:"Churn",    color:"#c0a020", max:10 },
+    ltv:              { label:"LTV (€)",  color:"#ff5722", max:20_000 },
 };
 
-// Animated fade-in with slight upward motion
-const FadeIn = ({ children, delay = 0 }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay }}
-    >
+/* ---------- Small helpers ---------- */
+const FadeIn = ({ children, delay=0 }) => (
+    <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.35, delay }}>
         {children}
     </motion.div>
 );
 
-// KPI gauge card
-function MarkCard({ name, value }) {
-    const { label, color, max } = MARK_CONFIG[name] || {};
-    const pct = max ? Math.min(100, (value / max) * 100) : 0;
+const getInitials = (name="") => name.split(" ").map((n)=>n[0]||"").join("").toUpperCase();
+
+/* ---------- KPI Card (tooltip = history chain) ---------- */
+function MarkCard({ name, value, history=[] }) {
+    const { label, color, max } = MARK_CONFIG[name] ?? {};
+    const pct = max ? Math.min(100, (value/max)*100) : 0;
 
     return (
-        <Paper
-            elevation={3}
-            sx={{
-                p: 2,
-                bgcolor: "background.paper",
-                borderRadius: 2,
-                textAlign: "center",
-                width: 140,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 1
-            }}
+        <Tooltip
+            arrow
+            placement="top"
+            title={
+                history.length
+                    ? (
+                        <>
+                            <strong>{label} history</strong><br/>
+                            {history
+                                .sort((a,b)=>dayjs(a.created_at).diff(dayjs(b.created_at)))
+                                .map((h,i)=>(
+                                    <span key={i}>
+                      {dayjs(h.created_at).format("DD MMM")}: {h.new_value}<br/>
+                    </span>
+                                ))}
+                        </>
+                    )
+                    : "No history"
+            }
         >
-            <Box sx={{ position: "relative", display: "inline-flex" }}>
+            <Paper
+                elevation={3}
+                sx={{
+                    px:2, py:1.5, borderRadius:2, textAlign:"center",
+                    width:140, display:"flex", flexDirection:"column", alignItems:"center", gap:1
+                }}
+            >
                 <CircularProgress
                     variant="determinate"
                     value={pct}
+                    size={62}
                     thickness={5}
-                    size={64}
                     sx={{ color }}
                 />
-                <Box
-                    sx={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                    }}
-                >
-                    <Typography variant="h6" fontWeight={600}>
-                        {value}
-                    </Typography>
-                </Box>
-            </Box>
-            <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 500, textTransform: "uppercase", color: "text.secondary" }}
-            >
-                {label}
-            </Typography>
-        </Paper>
+                <Typography variant="h6" fontWeight={600} lineHeight={1.2}>{value ?? "—"}</Typography>
+                <Typography variant="caption" textTransform="uppercase" sx={{ color:"text.secondary" }}>
+                    {label}
+                </Typography>
+            </Paper>
+        </Tooltip>
     );
 }
 
-// Utility to get initials from name
-const getInitials = (name) =>
-    name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase();
-
-// Main client details dialog
+/* ---------- MAIN COMPONENT ---------- */
 export default function ClientDetailsDialog({ open, onClose, client }) {
-    const theme = useTheme();
+    const theme      = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
-    if (!client) return null;
-    const { client_name, client_phone_number, crm_data = {}, conversations_data = {}, website_data = {}, marks = {} } = client;
+    /* preview (from table) & fresh data  */
+    const [details, setDetails]   = useState(null);
+    const [loading, setLoading]   = useState(false);
+    const [err,     setErr]       = useState(null);
 
-    // Header gradient
-    const headerBg = `linear-gradient(135deg, ${MARK_CONFIG.like_to_engage.color} 0%, ${MARK_CONFIG.like_to_purchase.color} 100%)`;
-    const initials = getInitials(client_name || "");
+    /* fetch on id change */
+    useEffect(() => {
+        if (!open || !client?.id) return;
+
+        let mounted = true;
+        (async () => {
+            setLoading(true);
+            try {
+                const data = await fetchClient(client.id);
+                if (mounted) setDetails(data), setErr(null);
+            } catch (e) {
+                if (mounted) setErr(e.message);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        })();
+
+        return () => { mounted = false; };
+    }, [open, client?.id]);
+
+    const d = details || {};                 // alias
+
+    /* ---------- derived ---------- */
+    const marks = {
+        like_to_engage:   d.like_to_engage,
+        like_to_purchase: d.like_to_purchase,
+        like_to_churn:    d.like_to_churn,
+        ltv:              d.ltv,
+    };
+    const markHistory = (type) => (d.marks_history || []).filter(h => h.mark_type === type);
+
+    const headerGradient = `linear-gradient(135deg, ${MARK_CONFIG.like_to_engage.color} 0%, ${MARK_CONFIG.like_to_purchase.color} 100%)`;
 
     return (
         <Dialog
@@ -119,101 +133,140 @@ export default function ClientDetailsDialog({ open, onClose, client }) {
             fullWidth
             maxWidth="lg"
             fullScreen={fullScreen}
-            PaperProps={{ sx: { width: { xs: "95vw", sm: "90vw", md: "80vw", lg: "70vw" }, maxWidth: 1100, borderRadius: 2, overflow: "hidden" } }}
+            PaperProps={{ sx:{ width:{ xs:"95vw", sm:"90vw", md:"80vw", lg:"70vw" }, borderRadius:2, overflow:"hidden" } }}
         >
-            {/* HEADER */}
-            <DialogTitle sx={{ bgcolor: headerBg, color: "#101010", position: "relative", px: 4, py: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Avatar sx={{ bgcolor: "secondary.main", width: 56, height: 56, fontSize: "1.25rem" }}>
-                        {initials}
-                    </Avatar>
+            {/* ---------- HEADER ---------- */}
+            <DialogTitle sx={{ bgcolor:headerGradient, position:"relative", px:4, py:3 }}>
+                <Box sx={{ display:"flex", alignItems:"center", gap:2 }}>
+                    <Avatar sx={{ bgcolor:"secondary.main", width:56, height:56 }}>{getInitials(d.client_name)}</Avatar>
                     <Box>
-                        <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: 0.5, color: "#232323" }}>
-                            {client_name}
-                        </Typography>
-                        <Typography
-                            variant="body1"
-                            sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5, opacity: 0.85, color: "#292929" }}
-                        >
-                            <PhoneIcon fontSize="small" sx={{ color: "#191919" }} /> {client_phone_number}
+                        <Typography variant="h4" fontWeight={700}>{d.client_name ?? "—"}</Typography>
+                        <Typography variant="body2" sx={{ display:"flex", alignItems:"center", gap:1 }}>
+                            <PhoneIcon fontSize="small"/> {d.phone ?? client?.phone ?? "—"}
                         </Typography>
                     </Box>
                 </Box>
-
-                <IconButton onClick={onClose} sx={{ position: "absolute", right: 12, top: 12, color: "#fff" }}>
-                    <CloseIcon fontSize="small" />
+                <IconButton onClick={onClose} sx={{ position:"absolute", right:12, top:12, color:"#fff" }}>
+                    <CloseIcon />
                 </IconButton>
 
-                {/* KPI ROW */}
-                <FadeIn delay={0.2}>
-                    <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
-                        {Object.entries(marks).map(([k, v]) => (
-                            <MarkCard key={k} name={k} value={v} />
+                <FadeIn delay={0.15}>
+                    <Box sx={{ mt:3, display:"flex", gap:2, flexWrap:"wrap", justifyContent:"center" }}>
+                        {Object.entries(marks).map(([k,v]) => (
+                            <MarkCard key={k} name={k} value={v} history={markHistory(k)} />
                         ))}
                     </Box>
                 </FadeIn>
             </DialogTitle>
 
-            {/* CONTENT */}
-            <DialogContent dividers sx={{ bgcolor: theme.palette.background.default, p: { xs: 3, md: 4 } }}>
-                <Grid container spacing={4}>
-                    {/* LEFT COLUMN */}
-                    <Grid item xs={12} md={6}>
-                        <FadeIn delay={0.3}>
-                            <Paper elevation={2} sx={{ p: 3, borderRadius: 2, height: "100%" }}>
-                                <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}>
-                                    <ShoppingCartIcon fontSize="small" /> Last Purchase
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                <Typography variant="body1" gutterBottom>
-                                    <strong>Date:</strong> {crm_data.last_purchase_date || "-"}
-                                </Typography>
-                                <Typography variant="body1" gutterBottom>
-                                    <strong>Cost:</strong> €{crm_data.last_purchase_cost || "-"}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Type:</strong> {crm_data.last_purchase_type || "-"}
-                                </Typography>
-                            </Paper>
-                        </FadeIn>
-                    </Grid>
+            {/* ---------- CONTENT ---------- */}
+            <DialogContent dividers sx={{ p:{ xs:3, md:4 }, bgcolor:theme.palette.background.default }}>
+                {loading && (
+                    <Box sx={{ display:"flex", justifyContent:"center", my:4 }}><CircularProgress /></Box>
+                )}
+                {err && (
+                    <Typography color="error" sx={{ mb:2 }}>{err}</Typography>
+                )}
 
-                    {/* RIGHT COLUMN */}
-                    <Grid item xs={12} md={6}>
-                        <FadeIn delay={0.35}>
-                            <Paper elevation={2} sx={{ p: 3, borderRadius: 2, height: "100%" }}>
-                                <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}>
-                                    <PublicIcon fontSize="small" /> Website Activity
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                <Typography variant="body1" gutterBottom>
-                                    <strong>Tours Viewed:</strong> {website_data.tours_viewed || "-"}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Count:</strong> {website_data.tours_viewed_number || "-"}
-                                </Typography>
-                            </Paper>
-                        </FadeIn>
-                    </Grid>
+                {!loading && (
+                    <Grid container spacing={4}>
+                        {/* --- BUDGET & DIRECTIONS --- */}
+                        <Grid item xs={12} md={6}>
+                            <FadeIn delay={0.25}>
+                                <Paper elevation={2} sx={{ p:3, borderRadius:2, height:"100%" }}>
+                                    <Typography variant="h6" sx={{ display:"flex", alignItems:"center", gap:1, mb:2, fontWeight:600 }}>
+                                        <ShoppingCartIcon fontSize="small"/> Budget
+                                    </Typography>
+                                    <Divider sx={{ mb:2 }}/>
+                                    <Typography variant="body1" gutterBottom>
+                                        <strong>Amount:</strong> {d.budget_amount ?? "-"} {d.budget_currency?.toUpperCase() ?? ""}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Directions:</strong> {d.directions ?? "-"}
+                                    </Typography>
+                                </Paper>
+                            </FadeIn>
+                        </Grid>
 
-                    {/* FULL WIDTH SECTION */}
-                    <Grid item xs={12}>
-                        <FadeIn delay={0.4}>
-                            <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                                <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}>
-                                    <ChatIcon fontSize="small" /> Conversations ({conversations_data.conversations_amount || 0})
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                <Typography variant="body1" gutterBottom>
-                                    <strong>Manager Mark:</strong> {conversations_data.manager_mark || "-"} / 10
-                                </Typography>
-                                <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", fontStyle: "italic" }}>
-                                    {conversations_data.conversations_summary || "-"}
-                                </Typography>
-                            </Paper>
-                        </FadeIn>
+                        {/* --- Website activity --- */}
+                        <Grid item xs={12} md={6}>
+                            <FadeIn delay={0.3}>
+                                <Paper elevation={2} sx={{ p:3, borderRadius:2, height:"100%" }}>
+                                    <Typography variant="h6" sx={{ display:"flex", alignItems:"center", gap:1, mb:2, fontWeight:600 }}>
+                                        <PublicIcon fontSize="small"/> Website Activity
+                                    </Typography>
+                                    <Divider sx={{ mb:2 }}/>
+                                    <Typography variant="body1" gutterBottom>
+                                        <strong>Tours Viewed:</strong> {d.website_activity?.tours_viewed ?? "-"}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Count:</strong> {d.website_activity?.count ?? "-"}
+                                    </Typography>
+                                </Paper>
+                            </FadeIn>
+                        </Grid>
+
+                        {/* --- Conversations summary & history --- */}
+                        <Grid item xs={12}>
+                            <FadeIn delay={0.35}>
+                                <Paper elevation={2} sx={{ p:3, borderRadius:2 }}>
+                                    <Typography variant="h6" sx={{ display:"flex", alignItems:"center", gap:1, mb:2, fontWeight:600 }}>
+                                        <ChatIcon fontSize="small"/> Conversations ({d.conversations?.count ?? 0})
+                                    </Typography>
+                                    <Divider sx={{ mb:2 }}/>
+
+                                    {/* last summary */}
+                                    <Typography variant="body1" gutterBottom>
+                                        <strong>Manager Mark:</strong> {d.conversations?.manager_mark ?? "-"} /
+                                        {d.conversations?.manager_mark_max ?? 10}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ whiteSpace:"pre-wrap", mb:2, fontStyle:"italic" }}>
+                                        {d.conversations?.last_conversation_summary ?? "-"}
+                                    </Typography>
+
+                                    {/* history accordion */}
+                                    {Array.isArray(d.conversation_history) && d.conversation_history.length > 0 && (
+                                        <Accordion>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor:theme.palette.action.hover }}>
+                                                <HistoryIcon fontSize="small" sx={{ mr:1 }}/> Full Summary History
+                                            </AccordionSummary>
+                                            <AccordionDetails sx={{ maxHeight:260, overflowY:"auto" }}>
+                                                {d.conversation_history.map((h,i)=>(
+                                                    <Box key={i} sx={{ mb:2 }}>
+                                                        <Typography variant="caption" sx={{ color:"text.secondary" }}>
+                                                            {dayjs(h.created_at).format("DD-MM-YYYY HH:mm")}
+                                                        </Typography>
+                                                        <Typography variant="body2" sx={{ whiteSpace:"pre-wrap" }}>{h.summary}</Typography>
+                                                        {i !== d.conversation_history.length-1 && <Divider sx={{ my:1 }}/>}
+                                                    </Box>
+                                                ))}
+                                            </AccordionDetails>
+                                        </Accordion>
+                                    )}
+                                </Paper>
+                            </FadeIn>
+                        </Grid>
+
+                        {/* --- Triggers --- */}
+                        {Array.isArray(d.triggers) && d.triggers.length > 0 && (
+                            <Grid item xs={12}>
+                                <FadeIn delay={0.4}>
+                                    <Paper elevation={2} sx={{ p:3, borderRadius:2 }}>
+                                        <Typography variant="h6" sx={{ fontWeight:600, mb:2 }}>
+                                            Triggers
+                                        </Typography>
+                                        <Divider sx={{ mb:2 }}/>
+                                        <Box sx={{ display:"flex", gap:1, flexWrap:"wrap" }}>
+                                            {d.triggers.map((t,i)=>(
+                                                <Chip key={i} label={t} color="warning" variant="outlined"/>
+                                            ))}
+                                        </Box>
+                                    </Paper>
+                                </FadeIn>
+                            </Grid>
+                        )}
                     </Grid>
-                </Grid>
+                )}
             </DialogContent>
         </Dialog>
     );
