@@ -15,7 +15,7 @@ import {
 import dayjs from "dayjs";
 
 // 🔑 adjust if your FastAPI route differs
-const AUTH_URL = "http://176.36.152.27:8085/api/auth/login";
+const AUTH_URL = "https://clientiq.apltravel.ua/api/auth/login";
 
 export default function LoginPage() {
     const theme    = useTheme();

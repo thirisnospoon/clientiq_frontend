@@ -1,7 +1,7 @@
 // ------------------- api/summary.js -------------------
 import { requireAuth } from "../utils/auth.js";
 
-const BASE = "http://176.36.152.27:8085/api/admin/dashboard-summary";
+const BASE = "https://clientiq.apltravel.ua/api/admin/dashboard-summary";
 
 export async function fetchDashboardSummary(start, end) {
     const token   = requireAuth();

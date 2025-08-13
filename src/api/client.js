@@ -1,6 +1,6 @@
 import { requireAuth } from "../utils/auth.js";
 
-const BASE = "http://176.36.152.27:8085/api/admin/clients";
+const BASE = "https://clientiq.apltravel.ua/api/admin/clients";
 
 /**
  * Завантажити повну інформацію про клієнта.

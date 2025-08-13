@@ -18,8 +18,9 @@ import {
  *  color    – строка palette'ы, например "info.main"
  *  unit     – префикс, например "$"
  *  details  – массив { label, value } для pop-up
+ *  onClick  – (опц.) клік по картці
  */
-export default function MedianCard({ label, value, color, unit, details = [] }) {
+export default function MedianCard({ label, value, color, unit, details = [], onClick }) {
     const theme    = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const display  = typeof value === "number" ? value.toLocaleString() : "—";
@@ -37,7 +38,7 @@ export default function MedianCard({ label, value, color, unit, details = [] }) 
     const handleMove  = (e) => open && setAnchorPos({ top: e.clientY + 10, left: e.clientX + 10 });
     const handleLeave = () => setAnchorPos(null);
 
-    // Стиль только для заголовков карточки
+    // Стиль тільки для текстів картки
     const textStyles = {
         color: "#fff",
         textShadow: "0 1px 3px rgba(0, 0, 0, 0.5)",
@@ -50,10 +51,12 @@ export default function MedianCard({ label, value, color, unit, details = [] }) 
                 onMouseEnter={handleEnter}
                 onMouseMove={handleMove}
                 onMouseLeave={handleLeave}
+                onClick={onClick}
                 sx={{
-                    cursor: details.length ? "pointer" : "default",
-                    transition: "box-shadow 0.15s, filter 0.15s",
-                    "&:hover": { boxShadow: 6, filter: details.length ? "brightness(1.02)" : "none" },
+                    cursor: onClick || details.length ? "pointer" : "default",
+                    transition: "box-shadow 0.15s, filter 0.15s, transform 0.08s",
+                    "&:hover": { boxShadow: 6, filter: (onClick || details.length) ? "brightness(1.02)" : "none" },
+                    "&:active": onClick ? { transform: "scale(0.995)" } : {},
                     background: `linear-gradient(135deg, ${theme.palette[base].light} 0%, ${theme.palette[base].main} 100%)`,
                 }}
             >
@@ -109,7 +112,9 @@ export default function MedianCard({ label, value, color, unit, details = [] }) 
                                 }}
                             >
                                 <span>{dLabel}</span>
-                                <span style={{ fontWeight: 600 }}>{dValue.toLocaleString()}</span>
+                                <span style={{ fontWeight: 600 }}>
+                                    {typeof dValue === "number" ? dValue.toLocaleString() : dValue}
+                                </span>
                             </Box>
                         </Box>
                     ))}
