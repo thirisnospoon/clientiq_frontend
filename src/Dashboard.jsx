@@ -11,16 +11,29 @@ import {
     CircularProgress,
     useTheme,
     useMediaQuery,
+    Stack,
+    Avatar,
+    Divider,
+    Chip,
+    Button,
+    Tooltip,
+    Popover,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+
+// Free MIT pickers
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 
 import MedianCard from "./components/MedianCards.jsx";
 import ClientFilters from "./components/ClientFilters.jsx";
 import ClientsTable from "./components/ClientsTable.jsx";
 import TotalClientsDiagram from "./components/TotalClientsDiagram.jsx";
-import RetentionRateDiagram from "./components/RetentionRateDiagram.jsx";
 
 import EngagementDrilldownModal from "./components/EngagementDrilldownModal.jsx";
 import PurchaseDrilldownModal from "./components/PurchaseDrilldownModal.jsx";
@@ -32,7 +45,6 @@ import { fetchDistribution } from "./api/distribution.js";
 import { fetchDashboardSummary } from "./api/summary.js";
 
 import marksStats from "./data/marks_stats_data.json";
-import retentionRateData from "./data/retention_rate_data.json";
 
 dayjs.extend(customParseFormat);
 
@@ -75,7 +87,6 @@ export default function Dashboard() {
         (async () => {
             setLoading(true);
             try {
-                /* yyyy-mm-dd для бекенду */
                 const s = dateRange.start.format("YYYY-MM-DD");
                 const e = dateRange.end.format("YYYY-MM-DD");
 
@@ -123,11 +134,23 @@ export default function Dashboard() {
         };
     }
 
+    const formatNumber = (n) =>
+        (typeof n === "number" ? n : Number(n || 0)).toLocaleString();
+
     /* --- DERIVED --- */
     const maxLtv = useMemo(
         () => Math.max(0, ...clients.map((c) => c.marks.ltv)),
         [clients]
     );
+
+    /* KPI cards */
+    const metrics = [
+        { key: "retention_placeholder", label: "Retention", color: "primary.main" },
+        { key: "like_to_engage", label: "Likelihood to Engage", color: "info.main" },
+        { key: "like_to_purchase", label: "Likelihood to Purchase", color: "success.main" },
+        { key: "like_to_churn", label: "Likelihood to Churn", color: "warning.main" },
+        { key: "ltv", label: "LTV", color: "secondary.main" },
+    ];
 
     const markMeta = useMemo(
         () => [
@@ -147,7 +170,6 @@ export default function Dashboard() {
         ltv: [0, maxLtv],
     });
 
-    /* синхронізація maxLtv -> marksFilter */
     useEffect(() => {
         setMarksFilter((f) => ({ ...f, ltv: [0, maxLtv] }));
     }, [maxLtv]);
@@ -169,31 +191,92 @@ export default function Dashboard() {
         });
     }, [clients, marksFilter]);
 
-    /* --- STATIC diagrams --- */
-    const totalClientsPie = useMemo(() => {
-        const cats = marksStats.total_clients.by_categories;
-        return [
-            { name: "Not identified", value: cats.not_identified },
-            { name: "Identified", value: cats.identified },
-            { name: "Purchased", value: cats.purchased },
-        ];
-    }, []);
+    /* ------------------ COMBINED OVERVIEW (random data) ------------------ */
+    const [overview, setOverview] = useState({
+        total: 0,
+        identified: 0,
+        purchased: 0,
+        pie: [],
+    });
 
-    const retentionChart = useMemo(
-        () =>
-            retentionRateData.cohort_yearly_retention.map(({ year, rate }) => ({
-                year: `${year}`,
-                rate,
-            })),
-        []
-    );
+    const regenerateOverview = () => {
+        const total = 8000 + Math.floor(Math.random() * 14000);
+        const purchased = Math.floor(total * (0.10 + Math.random() * 0.25)); // 10–35%
+        const remaining = total - purchased;
+        const identified = Math.floor(remaining * (0.40 + Math.random() * 0.40)); // 40–80% of remaining
+        const unidentified = total - purchased - identified;
 
-    const metrics = [
-        { key: "total_clients", label: "Total Clients", color: "primary.main" },
-        { key: "like_to_engage", label: "Likelihood to Engage", color: "info.main" },
-        { key: "like_to_purchase", label: "Likelihood to Purchase", color: "success.main" },
-        { key: "like_to_churn", label: "Likelihood to Churn", color: "warning.main" },
-        { key: "ltv", label: "LTV", color: "secondary.main" },
+        setOverview({
+            total,
+            identified,
+            purchased,
+            pie: [
+                { name: "Unidentified", value: unidentified },
+                { name: "Identified", value: identified },
+                { name: "Purchased", value: purchased },
+            ],
+        });
+    };
+
+    useEffect(() => {
+        regenerateOverview();
+    }, [dateRange.start.valueOf(), dateRange.end.valueOf()]);
+
+    const unidentifiedAbs = overview.total - overview.purchased - overview.identified;
+
+    const rangeLabel = `${dateRange.start.format("DD MMM YYYY")} – ${dateRange.end.format(
+        "DD MMM YYYY"
+    )}`;
+
+    /* ------------------ Free single-range calendar (two calendars) ------------------ */
+    const [dateAnchor, setDateAnchor] = useState(null);
+    const [tmpRange, setTmpRange] = useState([dateRange.start, dateRange.end]);
+    const [selecting, setSelecting] = useState("start"); // "start" | "end"
+
+    const openDatePopover = (e) => {
+        setTmpRange([dateRange.start, dateRange.end]);
+        setSelecting("start");
+        setDateAnchor(e.currentTarget);
+    };
+    const closeDatePopover = () => setDateAnchor(null);
+
+    const handlePick = (newDay) => {
+        if (!newDay) return;
+        const day = newDay.startOf("day");
+        if (selecting === "start") {
+            setTmpRange([day, null]);
+            setSelecting("end");
+        } else {
+            let s = tmpRange[0] || day;
+            let e = day;
+            if (e.isBefore(s)) [s, e] = [e, s];
+            setTmpRange([s.startOf("day"), e.startOf("day")]);
+            setSelecting("start");
+        }
+    };
+
+    const applyTmpDates = () => {
+        const [s, e] = tmpRange || [];
+        if (s && e) {
+            let start = s.startOf("day");
+            let end = e.startOf("day");
+            if (end.isBefore(start)) [start, end] = [end, start];
+            setDateRange({ start, end });
+        }
+        closeDatePopover();
+    };
+
+    const quickSet = (days) => {
+        const end = dayjs().startOf("day");
+        const start = end.subtract(days, "day");
+        setTmpRange([start, end]);
+        setSelecting("start");
+    };
+
+    const pieColors = [
+        alpha(theme.palette.primary.main, 0.18), // Unidentified
+        alpha(theme.palette.primary.main, 0.40), // Identified
+        theme.palette.primary.main,              // Purchased
     ];
 
     /* ---------- UI ---------- */
@@ -226,6 +309,29 @@ export default function Dashboard() {
                                 const isLtvCard = key === "ltv";
                                 const isClickable =
                                     isEngageCard || isPurchaseCard || isChurnCard || isLtvCard;
+
+                                // compute value per card
+                                let value = "—";
+                                if (key === "retention_placeholder") {
+                                    value = "—";
+                                } else if (key === "like_to_engage") {
+                                    value =
+                                        summary?.like_to_engage ??
+                                        marksStats.like_to_engage?.total ??
+                                        "—";
+                                } else if (key === "like_to_purchase") {
+                                    value =
+                                        summary?.like_to_purchase ??
+                                        marksStats.like_to_purchase?.total ??
+                                        "—";
+                                } else if (key === "like_to_churn") {
+                                    value =
+                                        summary?.like_to_churn ??
+                                        marksStats.like_to_churn?.total ??
+                                        "—";
+                                } else if (key === "ltv") {
+                                    value = summary?.ltv ?? marksStats.ltv?.total ?? "—";
+                                }
 
                                 return (
                                     <Grid item xs={6} sm={4} md={2.4} key={key}>
@@ -261,9 +367,8 @@ export default function Dashboard() {
                                         >
                                             <MedianCard
                                                 label={label}
-                                                value={summary?.[key] ?? marksStats[key]?.total ?? "—"}
+                                                value={value}
                                                 color={color}
-                                                /* no hover popover details */
                                                 details={[]}
                                             />
                                         </Box>
@@ -272,40 +377,257 @@ export default function Dashboard() {
                             })}
                         </Grid>
 
-                        {/* Pie + retention */}
+                        {/* ---------------- Combined Overview tile (merged left+right) ---------------- */}
                         <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 3 : 4}>
-                            <Grid item xs={6} md={6}>
-                                <Paper sx={{ p: isMobile ? 2 : 3, height: "100%" }} elevation={3}>
-                                    <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
-                                        Total Clients – Distribution
-                                    </Typography>
-                                    <TotalClientsDiagram
-                                        data={totalClientsPie}
-                                        colors={[
-                                            theme.palette.grey[400],
-                                            theme.palette.info.main,
-                                            theme.palette.success.main,
-                                        ]}
-                                        height={isMobile ? 200 : 300}
+                            <Grid item xs={12}>
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: isMobile ? 2 : 3,
+                                        borderRadius: 3,
+                                        position: "relative",
+                                        overflow: "hidden",
+                                        border: `1px solid ${alpha(
+                                            theme.palette.primary.main,
+                                            0.18
+                                        )}`,
+                                        background: `linear-gradient(135deg,
+                                            ${alpha(theme.palette.primary.main, 0.10)} 0%,
+                                            ${alpha(theme.palette.primary.main, 0.03)} 100%)`,
+                                        boxShadow: `0 10px 30px ${alpha(
+                                            theme.palette.primary.main,
+                                            0.08
+                                        )}`,
+                                    }}
+                                >
+                                    {/* Decorative glows */}
+                                    <Box
+                                        sx={{
+                                            position: "absolute",
+                                            right: -40,
+                                            top: -40,
+                                            width: 180,
+                                            height: 180,
+                                            borderRadius: "50%",
+                                            background: alpha(theme.palette.primary.main, 0.12),
+                                            filter: "blur(30px)",
+                                        }}
                                     />
-                                </Paper>
-                            </Grid>
+                                    <Box
+                                        sx={{
+                                            position: "absolute",
+                                            left: -60,
+                                            bottom: -60,
+                                            width: 200,
+                                            height: 200,
+                                            borderRadius: "50%",
+                                            background: alpha(theme.palette.primary.light, 0.14),
+                                            filter: "blur(35px)",
+                                        }}
+                                    />
 
-                            <Grid item xs={6} md={6}>
-                                <Paper sx={{ p: isMobile ? 2 : 3, height: "100%" }} elevation={3}>
-                                    <Typography variant="subtitle1" mb={2} sx={{ fontWeight: 600 }}>
-                                        Cohort Retention (2019 → 2025)
-                                    </Typography>
-                                    <RetentionRateDiagram
-                                        data={retentionChart}
-                                        strokeColor={theme.palette.primary.main}
-                                        height={isMobile ? 200 : 300}
-                                    />
+                                    <Stack spacing={isMobile ? 1.5 : 2} sx={{ position: "relative" }}>
+                                        {/* Header */}
+                                        <Stack
+                                            direction="row"
+                                            alignItems="center"
+                                            justifyContent="space-between"
+                                            spacing={1.5}
+                                            sx={{ mb: 1 }}
+                                        >
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <Avatar
+                                                    variant="rounded"
+                                                    sx={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 2,
+                                                        bgcolor: alpha(
+                                                            theme.palette.primary.main,
+                                                            0.18
+                                                        ),
+                                                        color: theme.palette.primary.main,
+                                                        boxShadow: `inset 0 0 0 1px ${alpha(
+                                                            theme.palette.primary.main,
+                                                            0.22
+                                                        )}`,
+                                                    }}
+                                                >
+                                                    <GroupsRoundedIcon />
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography
+                                                        variant="overline"
+                                                        sx={{
+                                                            letterSpacing: 1.2,
+                                                            opacity: 0.85,
+                                                            textTransform: "uppercase",
+                                                        }}
+                                                    >
+                                                        Customer Overview
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{ opacity: 0.7, mt: -0.3 }}
+                                                    >
+                                                        Summary and distribution
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+
+                                            <Tooltip title="Change date range">
+                                                <Chip
+                                                    onClick={openDatePopover}
+                                                    icon={<CalendarMonthRoundedIcon />}
+                                                    size="small"
+                                                    label={rangeLabel}
+                                                    variant="outlined"
+                                                    sx={{
+                                                        borderColor: alpha(
+                                                            theme.palette.primary.main,
+                                                            0.35
+                                                        ),
+                                                        bgcolor: alpha(
+                                                            theme.palette.primary.main,
+                                                            0.06
+                                                        ),
+                                                        fontWeight: 600,
+                                                        cursor: "pointer",
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                        </Stack>
+
+                                        <Divider sx={{ opacity: 0.2 }} />
+
+                                        {/* Content: left summary, right donut — inside ONE tile */}
+                                        <Grid container spacing={isMobile ? 2 : 3} alignItems="center">
+                                            {/* Left summary */}
+                                            <Grid item xs={12} md={5.5}>
+                                                <Stack spacing={1.25}>
+                                                    <Typography
+                                                        variant={isMobile ? "h4" : "h2"} // a bit bigger
+                                                        sx={{ fontWeight: 900, lineHeight: 1.08, letterSpacing: -0.2 }}
+                                                    >
+                                                        {formatNumber(overview.total)}
+                                                    </Typography>
+                                                    <Typography variant="body2" sx={{ opacity: 0.75 }}>
+                                                        Total clients
+                                                    </Typography>
+
+                                                    <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
+                                                        <MiniStat
+                                                            label="Identified"
+                                                            value={formatNumber(overview.identified)}
+                                                            dotColor={alpha(theme.palette.primary.main, 0.40)}
+                                                        />
+                                                        <MiniStat
+                                                            label="Unidentified"
+                                                            value={formatNumber(unidentifiedAbs)}
+                                                            dotColor={alpha(theme.palette.primary.main, 0.18)}
+                                                        />
+                                                        <MiniStat
+                                                            label="Purchased"
+                                                            value={formatNumber(overview.purchased)}
+                                                            dotColor={theme.palette.primary.main}
+                                                        />
+                                                    </Stack>
+                                                </Stack>
+                                            </Grid>
+
+                                            {/* Right donut (smaller) — labels INSIDE as %; no bottom legend */}
+                                            <Grid item xs={12} md={6.5}>
+                                                <TotalClientsDiagram
+                                                    data={overview.pie}
+                                                    colors={pieColors}
+                                                    height={isMobile ? 190 : 240}
+                                                    showLabels
+                                                    labelMode="percent"      // show percents (not absolute)
+                                                    labelPlacement="inside" // no leader lines
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                    </Stack>
+
+                                    {/* Range picker popover (two free calendars) */}
+                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                        <Popover
+                                            open={Boolean(dateAnchor)}
+                                            anchorEl={dateAnchor}
+                                            onClose={closeDatePopover}
+                                            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                                            transformOrigin={{ vertical: "top", horizontal: "right" }}
+                                            PaperProps={{
+                                                sx: {
+                                                    p: 2,
+                                                    borderRadius: 2,
+                                                    border: `1px solid ${alpha(
+                                                        theme.palette.primary.main,
+                                                        0.2
+                                                    )}`,
+                                                },
+                                            }}
+                                        >
+                                            <Stack spacing={1.5}>
+                                                <Stack
+                                                    direction={{ xs: "column", sm: "row" }}
+                                                    spacing={2}
+                                                    alignItems="flex-start"
+                                                >
+                                                    <DateCalendar
+                                                        value={tmpRange?.[0] || null}
+                                                        onChange={handlePick}
+                                                        disableFuture
+                                                        sx={{ "& .MuiPickersCalendarHeader-root": { mb: 1 } }}
+                                                    />
+                                                    <DateCalendar
+                                                        value={tmpRange?.[1] || null}
+                                                        onChange={handlePick}
+                                                        disableFuture
+                                                        sx={{ "& .MuiPickersCalendarHeader-root": { mb: 1 } }}
+                                                    />
+                                                </Stack>
+
+                                                {/* Quick presets */}
+                                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                                    <Chip size="small" label="7d" onClick={() => quickSet(6)} />
+                                                    <Chip size="small" label="30d" onClick={() => quickSet(29)} />
+                                                    <Chip size="small" label="3 mo" onClick={() => {
+                                                        const end = dayjs().startOf("day");
+                                                        const start = end.subtract(3, "month");
+                                                        setTmpRange([start, end]);
+                                                        setSelecting("start");
+                                                    }} />
+                                                    <Chip size="small" label="YTD" onClick={() => {
+                                                        const end = dayjs().startOf("day");
+                                                        const start = dayjs().startOf("year");
+                                                        setTmpRange([start, end]);
+                                                        setSelecting("start");
+                                                    }} />
+                                                    <Chip size="small" label="Today" onClick={() => {
+                                                        const d = dayjs().startOf("day");
+                                                        setTmpRange([d, d]);
+                                                        setSelecting("start");
+                                                    }} />
+                                                </Stack>
+
+                                                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                    <Button onClick={closeDatePopover}>Cancel</Button>
+                                                    <Button
+                                                        variant="contained"
+                                                        onClick={applyTmpDates}
+                                                        disabled={!tmpRange?.[0] || !tmpRange?.[1]}
+                                                    >
+                                                        Apply
+                                                    </Button>
+                                                </Stack>
+                                            </Stack>
+                                        </Popover>
+                                    </LocalizationProvider>
                                 </Paper>
                             </Grid>
                         </Grid>
 
-                        {/* Removed: Marks diagrams (Engage, Purchase, Churn, LTV) */}
                         {/* Filters (дата + слайдери) + таблиця */}
                         <Grid container spacing={isMobile ? 2 : 3}>
                             <Grid item xs={12}>
@@ -343,5 +665,40 @@ export default function Dashboard() {
                 onClose={() => setOpenLtvModal(false)}
             />
         </Box>
+    );
+}
+
+/* -------- Small helper component for mini-stats -------- */
+function MiniStat({ label, value, dotColor }) {
+    return (
+        <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{
+                px: 1.25,
+                py: 0.75,
+                borderRadius: 2,
+                border: (theme) => `1px solid ${alpha(theme.palette.common.black, 0.08)}`,
+                bgcolor: (theme) => alpha(theme.palette.common.white, 0.6),
+                backdropFilter: "blur(6px)",
+            }}
+        >
+            <Box
+                sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: dotColor,
+                    boxShadow: (theme) => `0 0 0 2px ${alpha(dotColor, 0.15)}`,
+                }}
+            />
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {label}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.75 }}>
+                {value}
+            </Typography>
+        </Stack>
     );
 }

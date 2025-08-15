@@ -1,3 +1,4 @@
+// ------------------- MetricsChart.jsx -------------------
 import React from 'react';
 import {
     ResponsiveContainer,
@@ -9,9 +10,13 @@ import {
     CartesianGrid
 } from 'recharts';
 
+/**
+ * Generic metrics line chart.
+ * (Retention graph was removed from Dashboard; this component stays generic.)
+ */
 export default function MetricsChart({ data, strokeColor }) {
     const chartData = data.map(({ date, value }) => ({ date: date.format('DD MMM'), value }));
-    const gradientId = `grad-${strokeColor.replace('#', '')}`;
+    const gradientId = `grad-${String(strokeColor).replace('#', '')}`;
     return (
         <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>

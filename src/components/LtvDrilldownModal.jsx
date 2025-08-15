@@ -1,3 +1,4 @@
+// ------------------- LtvDrilldownModal.jsx -------------------
 import React, { useMemo, useState } from "react";
 import {
     AppBar, Toolbar, IconButton, Typography, Dialog, Slide, Box, Grid, Paper,
@@ -42,6 +43,7 @@ function mulberry32(a) {
 
 /* ---------- Euro formatting ---------- */
 const euro = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const euroCompact = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 });
 
 /* ---------- LTV bins (EUR) ---------- */
 const BIN_EDGES = [0, 100, 200, 300, 400, 600, 800, 1000, 1250, 1500, 2000, 3000, Infinity];
@@ -52,7 +54,7 @@ const BIN_LABELS = [
 ];
 function binMid(i) {
     const lo = BIN_EDGES[i], hi = BIN_EDGES[i + 1];
-    if (hi === Infinity) return 3500; // a reasonable midpoint for the open-ended bin
+    if (hi === Infinity) return 3500;
     return (lo + hi) / 2;
 }
 
@@ -65,18 +67,17 @@ function makeLtvSnapshot(date) {
     const mu = Math.log(600 + rng() * 900);     // ~ €600–€1500 median-ish region
     const sigma = 0.55 + rng() * 0.35;          // spread
 
-    // Build smooth weights across bins using log-normal pdf ~ exp(-((ln(x)-mu)^2)/(2*sigma^2))/x
+    // Smooth weights across bins
     const weights = BIN_LABELS.map((_, i) => {
         const x = binMid(i);
         const val = Math.exp(-Math.pow(Math.log(x + 1) - mu, 2) / (2 * sigma * sigma)) / (x + 1);
-        // add slight randomness to avoid perfectly smooth curves
         return Math.max(1e-6, val * (0.9 + rng() * 0.2));
     });
 
     const wsum = weights.reduce((a, b) => a + b, 0);
-    const shares = weights.map(w => w / wsum); // proportions per bin (sum ~ 1)
+    const shares = weights.map(w => w / wsum); // proportions per bin
 
-    // Compute median from cumulative shares with linear interpolation inside the bin
+    // Median from cumulative shares
     const cum = [];
     shares.reduce((acc, s, i) => (cum[i] = acc + s, cum[i]), 0);
     let med;
@@ -87,7 +88,7 @@ function makeLtvSnapshot(date) {
             const prevCum = i === 0 ? 0 : cum[i - 1];
             const within = (0.5 - prevCum) / Math.max(1e-9, shares[i]);
             if (hi === Infinity) {
-                med = Math.max(lo, binMid(i)); // fallback to midpoint for open bin
+                med = Math.max(lo, binMid(i));
             } else {
                 med = lo + within * (hi - lo);
             }
@@ -104,6 +105,26 @@ function makeLtvSnapshot(date) {
             share: shares[i] * 100 // percentage
         }))
     };
+}
+
+/* ---------- KPIs derived (stable per date) ---------- */
+function makeKpis(date) {
+    const d = dayjs(date).format("YYYY-MM-DD");
+    const rng = mulberry32(hashString(`${d}|kpis`));
+
+    // Average order value: €300–€1,200
+    const aov = Math.round((300 + rng() * 900) / 10) * 10;
+
+    // Purchases per year: 0.8–2.2
+    const perYear = +(0.8 + rng() * 1.4).toFixed(2);
+
+    // Avg lifetime: 1.0–4.0 years
+    const lifeYears = +(1.0 + rng() * 3.0).toFixed(1);
+
+    // Estimated active customers (for Total Annual LTV)
+    const customers = Math.floor(9000 + rng() * 16000); // 9k–25k
+
+    return { aov, perYear, lifeYears, customers };
 }
 
 function formatDelta(a, b) {
@@ -156,6 +177,61 @@ function CustomTooltip({ active, payload, label, theme, snapA, snapB, colorA, co
     );
 }
 
+/* ---------- KPI card with compare ---------- */
+function KpiCompareCard({ title, unit, valueA, valueB, colorA, colorB, currency = false }) {
+    const theme = useTheme();
+    const { diff, pct } = (valueB != null) ? formatDelta(valueA, valueB) : { diff: 0, pct: 0 };
+
+    const fmt = (v) => {
+        if (v == null) return "—";
+        if (currency) return euro.format(v);
+        return v;
+    };
+
+    return (
+        <Paper elevation={0} sx={{
+            p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider",
+            bgcolor: theme.palette.background.paper
+        }}>
+            <Typography variant="subtitle2" sx={{ opacity: 0.75, mb: 0.5 }}>{title}</Typography>
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                <Stack spacing={0.25}>
+                    <Stack direction="row" spacing={1} alignItems="baseline">
+                        <Chip size="small" label="A" sx={{ bgcolor: alpha(colorA, 0.12), color: colorA, border: "1px solid", borderColor: alpha(colorA, 0.3) }} />
+                        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                            {fmt(valueA)}{!currency && unit ? <span style={{ opacity: 0.8, fontSize: 14 }}> {unit}</span> : null}
+                        </Typography>
+                    </Stack>
+
+                    {valueB != null && (
+                        <Stack direction="row" spacing={1} alignItems="baseline">
+                            <Chip size="small" variant="outlined" label="B" sx={{ color: colorB, border: "1px solid", borderColor: alpha(colorB, 0.35) }} />
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                {fmt(valueB)}{!currency && unit ? <span style={{ opacity: 0.8, fontSize: 13 }}> {unit}</span> : null}
+                            </Typography>
+                        </Stack>
+                    )}
+                </Stack>
+
+                {valueB != null && (
+                    <Stack alignItems="flex-end" spacing={0.25}>
+                        <Typography variant="caption" sx={{ opacity: 0.7 }}>Change vs A</Typography>
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                            {diff >= 0 ? <ArrowUpwardIcon fontSize="small" color="success" /> : <ArrowDownwardIcon fontSize="small" color="error" />}
+                            <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                                {currency ? euro.format(Math.abs(diff)) : (diff > 0 ? "+" : "") + (Math.abs(diff).toFixed(2))}
+                            </Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.75 }}>
+                                ({pct >= 0 ? "+" : ""}{pct.toFixed(1)}%)
+                            </Typography>
+                        </Stack>
+                    </Stack>
+                )}
+            </Stack>
+        </Paper>
+    );
+}
+
 export default function LtvDrilldownModal({ open, onClose }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -165,6 +241,9 @@ export default function LtvDrilldownModal({ open, onClose }) {
 
     const snapA = useMemo(() => makeLtvSnapshot(primaryDate), [primaryDate]);
     const snapB = useMemo(() => compareDate ? makeLtvSnapshot(compareDate) : null, [compareDate]);
+
+    const kpisA = useMemo(() => makeKpis(primaryDate), [primaryDate]);
+    const kpisB = useMemo(() => compareDate ? makeKpis(compareDate) : null, [compareDate]);
 
     const mergedChartData = useMemo(() => {
         const base = snapA.bins.map(({ bucket, share }) => ({ bucket, A: share }));
@@ -184,6 +263,12 @@ export default function LtvDrilldownModal({ open, onClose }) {
         setPrimaryDate(dayjs());
         setCompareDate(null); // hide B series
     };
+
+    // Total LTV (Annual) — big & non-comparable (based on A only)
+    const totalAnnualLtv = useMemo(() => {
+        const value = kpisA.customers * kpisA.aov * kpisA.perYear;
+        return Math.round(value);
+    }, [kpisA]);
 
     return (
         <Dialog
@@ -262,45 +347,70 @@ export default function LtvDrilldownModal({ open, onClose }) {
                         </LocalizationProvider>
                     </Paper>
 
-                    {/* Median LTV headline(s) */}
+                    {/* BIG Total LTV (Annual) — non-comparable */}
+                    <Paper elevation={0} sx={{
+                        p: isMobile ? 2 : 3, borderRadius: 3,
+                        background: `linear-gradient(135deg, ${lighten(colorA, 0.25)} 0%, ${colorA} 100%)`,
+                        color: "#fff", border: "1px solid", borderColor: alpha("#000", 0.1),
+                        boxShadow: `0 4px 20px ${alpha(colorA, 0.35)}`
+                    }}>
+                        <Grid container spacing={2} alignItems="center">
+                            <Grid item xs={12} md={8}>
+                                <Typography variant="overline" sx={{ letterSpacing: 1.2, opacity: 0.9 }}>
+                                    Total LTV (Annual)
+                                </Typography>
+                                <Typography variant={isMobile ? "h3" : "h2"} sx={{ fontWeight: 900, lineHeight: 1.05 }}>
+                                    {euroCompact.format(totalAnnualLtv)}
+                                </Typography>
+                                <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                                    Estimated active customers: {kpisA.customers.toLocaleString()}
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <Stack spacing={0.5} sx={{ opacity: 0.95 }}>
+                                    <Typography variant="caption">Based on A-date KPIs:</Typography>
+                                    <Typography variant="caption">AOV: {euro.format(kpisA.aov)}</Typography>
+                                    <Typography variant="caption">Purchases / Year: {kpisA.perYear}</Typography>
+                                </Stack>
+                            </Grid>
+                        </Grid>
+                    </Paper>
+
+                    {/* Primary comparable KPIs */}
                     <Grid container spacing={isMobile ? 2 : 3}>
-                        <Grid item xs={12} md={snapB ? 6 : 12}>
+                        {/* Median LTV (comparable) */}
+                        <Grid item xs={12} md={6}>
                             <Paper elevation={0} sx={{
                                 p: isMobile ? 2 : 3, borderRadius: 3,
-                                background: `linear-gradient(135deg, ${lighten(colorA, 0.25)} 0%, ${colorA} 100%)`,
-                                color: "#fff", border: "1px solid", borderColor: alpha("#000", 0.1),
-                                boxShadow: `0 4px 20px ${alpha(colorA, 0.35)}`
+                                bgcolor: alpha(theme.palette.background.paper, 0.98),
+                                border: "1px solid", borderColor: "divider"
                             }}>
-                                <Typography variant="subtitle2" sx={{ opacity: 0.9 }}>Median LTV (A)</Typography>
-                                <Typography variant={isMobile ? "h4" : "h3"} sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-                                    {euro.format(snapA.median)}
-                                </Typography>
-                                <Typography variant="caption" sx={{ opacity: 0.9 }}>{snapA.date}</Typography>
-                            </Paper>
-                        </Grid>
-
-                        {snapB && (
-                            <Grid item xs={12} md={6}>
-                                <Paper elevation={0} sx={{
-                                    p: isMobile ? 2 : 3, borderRadius: 3,
-                                    bgcolor: alpha(theme.palette.background.paper, 0.9),
-                                    border: "1px solid", borderColor: "divider"
-                                }}>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                                        <Box>
-                                            <Typography variant="subtitle2" sx={{ opacity: 0.75 }}>Median LTV (B)</Typography>
-                                            <Typography variant={isMobile ? "h4" : "h3"} sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-                                                {euro.format(snapB.median)}
+                                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ opacity: 0.75 }}>Median LTV</Typography>
+                                        <Stack direction="row" spacing={1} alignItems="baseline">
+                                            <Chip size="small" label="A" sx={{ bgcolor: alpha(colorA, 0.12), color: colorA, border: "1px solid", borderColor: alpha(colorA, 0.3) }} />
+                                            <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                                                {euro.format(snapA.median)}
                                             </Typography>
-                                            <Typography variant="caption" sx={{ opacity: 0.75 }}>{snapB.date}</Typography>
-                                        </Box>
+                                        </Stack>
+                                        {snapB && (
+                                            <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mt: 0.5 }}>
+                                                <Chip size="small" variant="outlined" label="B" sx={{ color: colorB, border: "1px solid", borderColor: alpha(colorB, 0.35) }} />
+                                                <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                                                    {euro.format(snapB.median)}
+                                                </Typography>
+                                            </Stack>
+                                        )}
+                                    </Box>
+                                    {snapB && (
                                         <Box sx={{ textAlign: "right", minWidth: 160 }}>
                                             <Typography variant="subtitle2" sx={{ opacity: 0.75, mb: 0.5 }}>Change vs A</Typography>
                                             {medDelta && (
                                                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
                                                     {medDelta.diff >= 0 ? <ArrowUpwardIcon fontSize="small" color="success" /> : <ArrowDownwardIcon fontSize="small" color="error" />}
                                                     <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                                                        {(medDelta.diff >= 0 ? "+" : "") + euro.format(Math.abs(medDelta.diff)).replace("€", "")}€
+                                                        {(medDelta.diff >= 0 ? "+" : "") + euro.format(Math.abs(medDelta.diff))}
                                                     </Typography>
                                                     <Typography variant="body2" sx={{ opacity: 0.75 }}>
                                                         ({medDelta.pct >= 0 ? "+" : ""}{medDelta.pct.toFixed(1)}%)
@@ -308,10 +418,47 @@ export default function LtvDrilldownModal({ open, onClose }) {
                                                 </Stack>
                                             )}
                                         </Box>
-                                    </Stack>
-                                </Paper>
-                            </Grid>
-                        )}
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Grid>
+
+                        {/* Average Order Value (comparable) */}
+                        <Grid item xs={12} md={6}>
+                            <KpiCompareCard
+                                title="Average Order Value"
+                                unit=""
+                                valueA={kpisA.aov}
+                                valueB={kpisB?.aov ?? null}
+                                colorA={colorA}
+                                colorB={colorB}
+                                currency
+                            />
+                        </Grid>
+
+                        {/* Purchases / Year (comparable) */}
+                        <Grid item xs={12} md={6}>
+                            <KpiCompareCard
+                                title="Purchases / Year"
+                                unit=""
+                                valueA={kpisA.perYear}
+                                valueB={kpisB?.perYear ?? null}
+                                colorA={colorA}
+                                colorB={colorB}
+                            />
+                        </Grid>
+
+                        {/* Average Lifetime (years) (comparable) */}
+                        <Grid item xs={12} md={6}>
+                            <KpiCompareCard
+                                title="Average Lifetime"
+                                unit="years"
+                                valueA={kpisA.lifeYears}
+                                valueB={kpisB?.lifeYears ?? null}
+                                colorA={colorA}
+                                colorB={colorB}
+                            />
+                        </Grid>
                     </Grid>
 
                     {/* Distribution histogram (share per bucket) */}
