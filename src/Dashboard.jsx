@@ -24,7 +24,8 @@ import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-
+import { Link as RouterLink } from "react-router-dom";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 // Free MIT pickers
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -287,6 +288,18 @@ export default function Dashboard() {
                     <Typography variant="h6" sx={{ flexGrow: 1 }}>
                         Client IQ – APL Travel
                     </Typography>
+                    <Tooltip title="Open WhatsApp Sendouts">
+                        <Button
+                            component={RouterLink}
+                            to="/whatsapp"
+                            color="secondary"
+                            variant="contained"
+                            startIcon={<WhatsAppIcon />}
+                            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700, boxShadow: 3 }}
+                        >
+                            WhatsApp
+                        </Button>
+                    </Tooltip>
                 </Toolbar>
             </AppBar>
 
