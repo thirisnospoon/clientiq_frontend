@@ -1,17 +1,15 @@
-// src/api/whatsapp.js
 import { requireAuth } from "../utils/auth.js";
 
 /**
  * Base path for WhatsApp messaging API.
- * Uses relative URLs so it works across environments.
  */
 const API_BASE = "https://clientiq.apltravel.ua/api/messaging/whatsapp";
 
 /**
- * Internal helper: authenticated fetch that returns parsed JSON.
+ * Authenticated fetch that returns parsed JSON.
  * - Attaches Bearer token
  * - Handles 401 (clears storage and redirects to /login)
- * - Throws Error on non-OK responses with best-effort message
+ * - Throws Error with rich metadata (status, retryAfter, data)
  */
 async function apiFetchJson(path, { method = "GET", headers = {}, body, params } = {}) {
     const token = requireAuth();
@@ -35,10 +33,9 @@ async function apiFetchJson(path, { method = "GET", headers = {}, body, params }
     if (res.status === 401) {
         localStorage.clear();
         window.location.href = "/login";
-        return; // stop further processing
+        return;
     }
 
-    // Try to parse JSON; fall back to text if needed
     const contentType = res.headers.get("content-type") || "";
     let data;
     if (contentType.includes("application/json")) {
@@ -53,7 +50,12 @@ async function apiFetchJson(path, { method = "GET", headers = {}, body, params }
             data?.error?.message ||
             data?.message ||
             `HTTP ${res.status} on ${path}`;
-        throw new Error(msg);
+        const err = new Error(msg);
+        err.status = res.status;
+        err.data = data;
+        const ra = res.headers.get("retry-after");
+        err.retryAfter = ra ? Number(ra) : undefined; // seconds
+        throw err;
     }
 
     return data;
@@ -66,7 +68,7 @@ export async function checkWhatsappHealth() {
 
 /**
  * Send WhatsApp template message
- * @param {{ phone_number: string, template_name: string, template_params: string[] }} payload
+ * @param {{ phone_number: string, template_name: string, template_params?: string[] }} payload
  * @returns {Promise<{external_message_id?: string, message_id?: string, status?: string, success?: boolean}>}
  */
 export async function sendWhatsappTemplate({ phone_number, template_name, template_params }) {
@@ -79,10 +81,11 @@ export async function sendWhatsappTemplate({ phone_number, template_name, templa
 
 /**
  * Get messaging statistics
- * @param {Object} params Optional query params (e.g. { limit, offset })
+ * By default we pull "all" by setting limit=99999 (hardcoded as requested).
  */
 export async function fetchWhatsappStatistics(params = {}) {
-    return apiFetchJson("/statistics", { params });
+    const final = { limit: 99999, ...params };
+    return apiFetchJson("/statistics", { params: final });
 }
 
 /** Get list of available WhatsApp templates */

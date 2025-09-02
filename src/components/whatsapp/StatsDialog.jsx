@@ -1,4 +1,3 @@
-// src/components/whatsapp/StatsDialog.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Dialog,
@@ -92,9 +91,9 @@ function statusColor(theme, status) {
     return STATUS_COLORS[key]?.(theme) || theme.palette.grey[600];
 }
 
-/** Format "2025-09-01T15:20:09.764007+00:00" -> "01-09-2025 15:20:09" (local time) */
-function formatDateTime(iso) {
-    const d = dayjs(iso);
+/** Accepts Date/string/dayjs; outputs local time "DD-MM-YYYY HH:mm:ss" */
+function formatDateTime(value) {
+    const d = dayjs(value);
     if (!d.isValid()) return "—";
     return d.utc().local().format("DD-MM-YYYY HH:mm:ss");
 }
@@ -138,7 +137,8 @@ export default function StatsDialog({ open, onClose }) {
         (async () => {
             setLoading(true);
             try {
-                const data = await fetchWhatsappStatistics();
+                // Hardcoded limit=99999 to fetch "all" (as requested)
+                const data = await fetchWhatsappStatistics({ limit: 99999 });
                 if (!mounted) return;
                 setStats(data?.statistics || null);
                 setMessages(data?.messages || []);
@@ -206,18 +206,12 @@ export default function StatsDialog({ open, onClose }) {
     // gradients + per-bar fill
     const fillFor = (name) => {
         switch (name) {
-            case "sent":
-                return "url(#barSent)";
-            case "delivered":
-                return "url(#barDelivered)";
-            case "read":
-                return "url(#barRead)";
-            case "pending":
-                return "url(#barPending)";
-            case "failed":
-                return "url(#barFailed)";
-            default:
-                return "#8884d8";
+            case "sent": return "url(#barSent)";
+            case "delivered": return "url(#barDelivered)";
+            case "read": return "url(#barRead)";
+            case "pending": return "url(#barPending)";
+            case "failed": return "url(#barFailed)";
+            default: return "#8884d8";
         }
     };
 
@@ -280,8 +274,8 @@ export default function StatsDialog({ open, onClose }) {
         let current = [];
         const pushCurrent = () => {
             if (!current.length) return;
-            const start = dayjs(current[current.length - 1].created_at); // oldest in group
-            const end = dayjs(current[0].created_at); // newest in group
+            const start = dayjs(current[current.length - 1].created_at);
+            const end = dayjs(current[0].created_at);
             const uniqueTemplates = Array.from(
                 new Set(current.map((m) => m.template_name).filter(Boolean))
             );
@@ -347,18 +341,12 @@ export default function StatsDialog({ open, onClose }) {
                                         color: "#fff",
                                         bgcolor: (theme) => {
                                             switch (name) {
-                                                case "sent":
-                                                    return alpha(theme.palette.info.main, 0.9);
-                                                case "delivered":
-                                                    return alpha(theme.palette.success.main, 0.95);
-                                                case "read":
-                                                    return alpha(theme.palette.primary.main, 0.95);
-                                                case "pending":
-                                                    return alpha(theme.palette.warning.main, 0.95);
-                                                case "failed":
-                                                    return alpha(theme.palette.error.main, 0.95);
-                                                default:
-                                                    return theme.palette.grey[700];
+                                                case "sent": return alpha(theme.palette.info.main, 0.9);
+                                                case "delivered": return alpha(theme.palette.success.main, 0.95);
+                                                case "read": return alpha(theme.palette.primary.main, 0.95);
+                                                case "pending": return alpha(theme.palette.warning.main, 0.95);
+                                                case "failed": return alpha(theme.palette.error.main, 0.95);
+                                                default: return theme.palette.grey[700];
                                             }
                                         },
                                     }}
@@ -530,7 +518,7 @@ export default function StatsDialog({ open, onClose }) {
                                     </LocalizationProvider>
                                 </Grid>
 
-                                {/* Right: downloads + grouping controls */}
+                                {/* Right: downloads */}
                                 <Grid item xs={12} md={2}>
                                     <Stack
                                         direction="row"
@@ -628,7 +616,7 @@ export default function StatsDialog({ open, onClose }) {
                                     </TableHead>
 
                                     <TableBody>
-                                        {/* GROUPED RENDER (no nested tables to avoid column drift) */}
+                                        {/* GROUPED RENDER */}
                                         {groupingEnabled &&
                                             pagedGroups.map((group, gi) => {
                                                 const absIdx = page * rowsPerPage + gi;
@@ -700,7 +688,7 @@ export default function StatsDialog({ open, onClose }) {
                                                             </TableCell>
                                                         </TableRow>
 
-                                                        {/* Group rows (render directly inside same TableBody to keep alignment) */}
+                                                        {/* Group rows */}
                                                         {!isCollapsed &&
                                                             group.items.map((m) => {
                                                                 const shortExt = m.external_message_id
