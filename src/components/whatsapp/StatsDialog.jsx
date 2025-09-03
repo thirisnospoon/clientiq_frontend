@@ -1,3 +1,4 @@
+// src/components/whatsapp/StatsDialog.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Dialog,
@@ -113,6 +114,9 @@ function groupColor(theme, idx) {
 /* ---------- component ---------- */
 export default function StatsDialog({ open, onClose }) {
     const [loading, setLoading] = useState(false);
+    const [loadTotal, setLoadTotal] = useState(0);
+    const [loadFetched, setLoadFetched] = useState(0);
+
     const [stats, setStats] = useState(null);
     const [messages, setMessages] = useState([]);
 
@@ -129,23 +133,55 @@ export default function StatsDialog({ open, onClose }) {
 
     // pagination
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(10); // -1 => All
 
+    // Fetch ALL messages using offset/limit pagination until total_messages reached
     useEffect(() => {
         if (!open) return;
         let mounted = true;
+
         (async () => {
             setLoading(true);
+            setLoadTotal(0);
+            setLoadFetched(0);
+            setStats(null);
+            setMessages([]);
+
+            const CHUNK = 500; // reasonable chunk size
+            let offset = 0;
+            let total = 0;
+            let all = [];
+
             try {
-                // Hardcoded limit=99999 to fetch "all" (as requested)
-                const data = await fetchWhatsappStatistics({ limit: 99999 });
-                if (!mounted) return;
-                setStats(data?.statistics || null);
-                setMessages(data?.messages || []);
+                while (true) {
+                    const data = await fetchWhatsappStatistics({ limit: CHUNK, offset });
+                    if (!mounted) return;
+
+                    const pageMessages = data?.messages || [];
+                    if (offset === 0) {
+                        // The API returns global totals/stats; we snapshot at the first page
+                        setStats(data?.statistics || null);
+                        total = Number(data?.total_messages || pageMessages.length);
+                        setLoadTotal(total);
+                    }
+
+                    all = all.concat(pageMessages);
+                    setMessages([...all]);
+                    setLoadFetched(all.length);
+
+                    const hasMore =
+                        data?.pagination?.has_more ??
+                        (all.length < total);
+
+                    if (!hasMore || pageMessages.length === 0) break;
+
+                    offset += CHUNK;
+                }
             } finally {
                 if (mounted) setLoading(false);
             }
         })();
+
         return () => {
             mounted = false;
         };
@@ -306,15 +342,17 @@ export default function StatsDialog({ open, onClose }) {
         setPage(0);
     }, [statusFilter, templateFilter, fromDate, toDate, groupingEnabled, thresholdSec]);
 
-    // pagination slice (groups vs rows)
+    // pagination slice (groups vs rows) — supports "All" (-1)
     const pagedGroups = useMemo(() => {
         if (!groupingEnabled) return [];
+        if (rowsPerPage === -1) return groups;
         const start = page * rowsPerPage;
         return groups.slice(start, start + rowsPerPage);
     }, [groups, page, rowsPerPage, groupingEnabled]);
 
     const pagedRowsNoGrouping = useMemo(() => {
         if (groupingEnabled) return [];
+        if (rowsPerPage === -1) return sortedMessages;
         const start = page * rowsPerPage;
         return sortedMessages.slice(start, start + rowsPerPage);
     }, [sortedMessages, page, rowsPerPage, groupingEnabled]);
@@ -322,12 +360,24 @@ export default function StatsDialog({ open, onClose }) {
     const toggleGroup = (absIdx) =>
         setCollapsedGroups((prev) => ({ ...prev, [absIdx]: !prev[absIdx] }));
 
+    const totalCount = groupingEnabled ? groups.length : sortedMessages.length;
+
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
             <DialogTitle sx={{ pb: 1.5 }}>WhatsApp Messaging Statistics</DialogTitle>
 
             <DialogContent dividers>
-                {loading && <LinearProgress sx={{ mb: 2 }} />}
+                {loading && (
+                    <Stack spacing={1.5} sx={{ mb: 2 }}>
+                        <LinearProgress
+                            variant={loadTotal > 0 ? "determinate" : "indeterminate"}
+                            value={loadTotal > 0 ? Math.min(100, Math.round((loadFetched / loadTotal) * 100)) : undefined}
+                        />
+                        <Typography variant="caption" sx={{ opacity: 0.75 }}>
+                            Loading messages {loadFetched}/{loadTotal || "…"}
+                        </Typography>
+                    </Stack>
+                )}
 
                 {!loading && (
                     <Stack spacing={2.5}>
@@ -565,7 +615,10 @@ export default function StatsDialog({ open, onClose }) {
                                             control={
                                                 <Switch
                                                     checked={groupingEnabled}
-                                                    onChange={(e) => setGroupingEnabled(e.target.checked)}
+                                                    onChange={(e) => {
+                                                        setGroupingEnabled(e.target.checked);
+                                                        setPage(0);
+                                                    }}
                                                 />
                                             }
                                             label="Group by time window (sendout detection)"
@@ -619,7 +672,7 @@ export default function StatsDialog({ open, onClose }) {
                                         {/* GROUPED RENDER */}
                                         {groupingEnabled &&
                                             pagedGroups.map((group, gi) => {
-                                                const absIdx = page * rowsPerPage + gi;
+                                                const absIdx = rowsPerPage === -1 ? gi : page * rowsPerPage + gi;
                                                 const gColor = (theme) => groupColor(theme, gi);
                                                 const isCollapsed = !!collapsedGroups[absIdx];
 
@@ -844,17 +897,25 @@ export default function StatsDialog({ open, onClose }) {
 
                             <TablePagination
                                 component="div"
-                                count={groupingEnabled ? groups.length : sortedMessages.length}
+                                count={totalCount}
                                 page={page}
                                 onPageChange={(_, p) => setPage(p)}
                                 rowsPerPage={rowsPerPage}
                                 onRowsPerPageChange={(e) => {
-                                    setRowsPerPage(parseInt(e.target.value, 10));
+                                    const next = parseInt(e.target.value, 10);
+                                    setRowsPerPage(next);
                                     setPage(0);
                                 }}
-                                rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                                rowsPerPageOptions={[
+                                    5, 10, 25, 50, 100, { label: "All", value: -1 },
+                                ]}
                                 labelRowsPerPage={
                                     groupingEnabled ? "Sendouts per page:" : "Rows per page:"
+                                }
+                                labelDisplayedRows={({ from, to, count }) =>
+                                    rowsPerPage === -1
+                                        ? `All ${count !== -1 ? count : ""}`
+                                        : `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
                                 }
                             />
                         </Paper>

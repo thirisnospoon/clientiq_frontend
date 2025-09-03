@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+// src/pages/WhatsappSendoutsPage.jsx
+import React, {useEffect, useMemo, useState} from "react";
 import {
     AppBar, Toolbar, Container, Box, Paper, Stack, Typography, Chip, Divider, Grid,
-    TextField, Button, IconButton, Tooltip, Alert, LinearProgress, Avatar
+    TextField, Button, IconButton, Tooltip, Alert, LinearProgress, Avatar,
+    Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import { motion, AnimatePresence } from "framer-motion";
+import {alpha} from "@mui/material/styles";
+import {motion, AnimatePresence} from "framer-motion";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
@@ -32,6 +34,7 @@ function normalizePhone(raw) {
     s = s.replace(/[\s\-\(\)]/g, "");
     return s;
 }
+
 const unique = (arr) => Array.from(new Set(arr.filter(Boolean)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,8 +78,7 @@ export default function WhatsappSendoutsPage() {
     const [events, setEvents] = useState([]); // {id, level, text}
     const pushEvent = (level, text) => {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        setEvents((prev) => [...prev, { id, level, text }]);
-        // Auto-remove after a while
+        setEvents((prev) => [...prev, {id, level, text}]);
         setTimeout(() => {
             setEvents((prev) => prev.filter((e) => e.id !== id));
         }, 6500);
@@ -84,6 +86,9 @@ export default function WhatsappSendoutsPage() {
 
     /* Stats dialog */
     const [openStats, setOpenStats] = useState(false);
+
+    /* Confirm dialog before sending */
+    const [openConfirm, setOpenConfirm] = useState(false);
 
     // Load health + templates on mount
     useEffect(() => {
@@ -100,7 +105,9 @@ export default function WhatsappSendoutsPage() {
                 // ignore
             }
         })();
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+        };
     }, []); // once
 
     // Update pause countdown
@@ -126,7 +133,8 @@ export default function WhatsappSendoutsPage() {
     const copyResult = (text) => {
         try {
             navigator.clipboard.writeText(text || "");
-        } catch {/* noop */}
+        } catch {/* noop */
+        }
     };
 
     const canSend = selectedTemplate && recipientList.length > 0 && !sending;
@@ -196,10 +204,10 @@ export default function WhatsappSendoutsPage() {
                 // Decide backoff
                 let backoffMs = 0;
                 if (isRateLimit || isServer) {
-                    backoffMs = retryAfter ? retryAfter * 1000 : Math.min(30000, 1000 * Math.pow(2, attempt)); // 1s,2s,4s...
+                    backoffMs = retryAfter ? retryAfter * 1000 : Math.min(30000, 1000 * Math.pow(2, attempt));
                     setGlobalPause(backoffMs, isRateLimit ? "Rate limit" : "Server issue");
                 } else {
-                    backoffMs = 500 * attempt + Math.floor(Math.random() * 300); // light backoff for client errors
+                    backoffMs = 500 * attempt + Math.floor(Math.random() * 300);
                 }
 
                 await sleep(backoffMs);
@@ -223,6 +231,7 @@ export default function WhatsappSendoutsPage() {
 
     const doSend = async () => {
         if (!canSend) return;
+        setOpenConfirm(false);
         setSending(true);
         setProgress(0);
         setResults({});
@@ -253,7 +262,7 @@ export default function WhatsappSendoutsPage() {
         };
 
         // Spin up limited workers
-        const workers = Array.from({ length: Math.min(MAX_CONCURRENCY, total) }, (_, i) => worker(i));
+        const workers = Array.from({length: Math.min(MAX_CONCURRENCY, total)}, (_, i) => worker(i));
         await Promise.all(workers);
 
         setSending(false);
@@ -262,60 +271,66 @@ export default function WhatsappSendoutsPage() {
 
     /* Derived: health chip */
     const healthChip = useMemo(() => {
-        if (!health) return <Chip label="Checking health..." size="small" />;
+        if (!health) return <Chip label="Checking health..." size="small"/>;
         return healthOk ? (
             <Chip
                 size="small"
                 color="success"
-                icon={<CheckCircleIcon />}
+                icon={<CheckCircleIcon/>}
                 label="API healthy"
             />
         ) : (
             <Chip
                 size="small"
                 color="error"
-                icon={<ErrorOutlineIcon />}
+                icon={<ErrorOutlineIcon/>}
                 label="API unhealthy"
             />
         );
     }, [health, healthOk]);
 
+    /* Estimate (informational) */
+    const approxSeconds =
+        recipientList.length > 0
+            ? Math.ceil((recipientList.length / Math.max(1, Math.min(MAX_CONCURRENCY, recipientList.length))) * (BASE_SPACING_MS / 1000))
+            : 0;
+
     /* UI */
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <Box sx={{display: "flex", flexDirection: "column", minHeight: "100vh"}}>
             <AppBar position="static" elevation={2}>
                 <Toolbar>
-                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" sx={{flexGrow: 1}}>
                         WhatsApp Sendouts
                     </Typography>
                     {healthChip}
                     {paused && (
                         <Chip
-                            sx={{ ml: 1 }}
+                            sx={{ml: 1}}
                             size="small"
                             color="warning"
-                            icon={<TimelapseRoundedIcon />}
+                            icon={<TimelapseRoundedIcon/>}
                             label={`Throttling ${Math.ceil(pauseRemain / 1000)}s`}
                         />
                     )}
                     <Tooltip title="Refresh health">
                         <IconButton color="inherit" onClick={async () => setHealth(await checkWhatsappHealth())}>
-                            <RefreshIcon />
+                            <RefreshIcon/>
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="View stats">
                         <IconButton color="inherit" onClick={() => setOpenStats(true)}>
-                            <AnalyticsOutlinedIcon />
+                            <AnalyticsOutlinedIcon/>
                         </IconButton>
                     </Tooltip>
                 </Toolbar>
             </AppBar>
 
-            <Container maxWidth="lg" sx={{ py: 3, flexGrow: 1 }}>
+            <Container maxWidth="lg" sx={{py: 3, flexGrow: 1}}>
                 <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
+                    initial={{opacity: 0, y: 10}}
+                    animate={{opacity: 1, y: 0}}
+                    transition={{duration: 0.25}}
                 >
                     <Paper
                         elevation={0}
@@ -336,7 +351,7 @@ export default function WhatsappSendoutsPage() {
                             width: 220, height: 220, borderRadius: "50%",
                             background: theme => alpha(theme.palette.primary.main, 0.12),
                             filter: "blur(40px)"
-                        }} />
+                        }}/>
 
                         <Stack spacing={2}>
                             <Stack direction="row" spacing={1.5} alignItems="center">
@@ -344,19 +359,20 @@ export default function WhatsappSendoutsPage() {
                                     bgcolor: theme => alpha(theme.palette.primary.main, 0.18),
                                     color: "primary.main", width: 44, height: 44
                                 }}>
-                                    <ListAltOutlinedIcon />
+                                    <ListAltOutlinedIcon/>
                                 </Avatar>
                                 <Box>
-                                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                                    <Typography variant="h6" sx={{fontWeight: 800}}>
                                         Create Sendout
                                     </Typography>
-                                    <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                                        Choose a template, paste/upload recipients, and send. The system auto-throttles on limits and retries up to 3× per number.
+                                    <Typography variant="body2" sx={{opacity: 0.7}}>
+                                        Choose a template, paste/upload recipients, and send. The system auto-throttles
+                                        on limits and retries up to 3× per number.
                                     </Typography>
                                 </Box>
                             </Stack>
 
-                            <Divider />
+                            <Divider/>
 
                             {/* Controls */}
                             <Grid container spacing={3}>
@@ -365,7 +381,7 @@ export default function WhatsappSendoutsPage() {
                                     <Stack spacing={2}>
                                         <TextField
                                             select
-                                            SelectProps={{ native: true }}
+                                            SelectProps={{native: true}}
                                             label="Template"
                                             value={selectedTemplate}
                                             onChange={(e) => setSelectedTemplate(e.target.value)}
@@ -378,8 +394,9 @@ export default function WhatsappSendoutsPage() {
                                                 </option>
                                             ))}
                                         </TextField>
-                                        <Alert severity="info" sx={{ m: 0 }}>
-                                            Bulk send uses a smart queue (concurrency {MAX_CONCURRENCY}, spacing {(BASE_SPACING_MS/1000).toFixed(2)}s + jitter).
+                                        <Alert severity="info" sx={{m: 0}}>
+                                            Bulk send uses a smart queue (concurrency {MAX_CONCURRENCY},
+                                            spacing {(BASE_SPACING_MS / 1000).toFixed(2)}s + jitter).
                                         </Alert>
                                     </Stack>
                                 </Grid>
@@ -390,11 +407,11 @@ export default function WhatsappSendoutsPage() {
                                         <TextField
                                             label="Recipients (one per line; commas/semicolon accepted)"
                                             multiline minRows={6} fullWidth
-                                            placeholder="380733927425&#10;380XXXXXXXXX"
+                                            placeholder={"380733927425\n380XXXXXXXXX"}
                                             value={manualNumbers}
                                             onChange={(e) => setManualNumbers(e.target.value)}
                                         />
-                                        <NumbersDropzone onNumbers={handleUploadNumbers} />
+                                        <NumbersDropzone onNumbers={handleUploadNumbers}/>
                                         {!!csvNumbers.length && (
                                             <Chip
                                                 color="info"
@@ -409,23 +426,23 @@ export default function WhatsappSendoutsPage() {
                             <Stack direction="row" spacing={1.5} alignItems="center">
                                 <Button
                                     variant="contained"
-                                    startIcon={<SendRoundedIcon />}
+                                    startIcon={<SendRoundedIcon/>}
                                     disabled={!canSend}
-                                    onClick={doSend}
+                                    onClick={() => setOpenConfirm(true)}
                                 >
                                     Send to {recipientList.length} recipient{recipientList.length !== 1 ? "s" : ""}
                                 </Button>
                                 {!healthOk && (
-                                    <Alert severity="warning" sx={{ m: 0 }}>
+                                    <Alert severity="warning" sx={{m: 0}}>
                                         API health is not OK — send may fail.
                                     </Alert>
                                 )}
                             </Stack>
 
                             {sending && (
-                                <Box sx={{ mt: 1 }}>
-                                    <LinearProgress variant="determinate" value={progress} />
-                                    <Typography variant="caption" sx={{ opacity: 0.75 }}>
+                                <Box sx={{mt: 1}}>
+                                    <LinearProgress variant="determinate" value={progress}/>
+                                    <Typography variant="caption" sx={{opacity: 0.75}}>
                                         {progress}% completed {paused ? "• throttling…" : ""}
                                     </Typography>
                                 </Box>
@@ -433,8 +450,8 @@ export default function WhatsappSendoutsPage() {
 
                             {/* Results */}
                             {!!Object.keys(results).length && (
-                                <Box sx={{ mt: 2 }}>
-                                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
+                                <Box sx={{mt: 2}}>
+                                    <Typography variant="subtitle1" sx={{mb: 1, fontWeight: 700}}>
                                         Results
                                     </Typography>
                                     <Grid container spacing={1.5}>
@@ -456,27 +473,30 @@ export default function WhatsappSendoutsPage() {
                                                         }}
                                                     >
                                                         <Stack direction="row" spacing={1} alignItems="center">
-                                                            {ok ? <CheckCircleIcon color="success" /> : <ErrorOutlineIcon color="error" />}
+                                                            {ok ? <CheckCircleIcon color="success"/> :
+                                                                <ErrorOutlineIcon color="error"/>}
                                                             <Stack spacing={0}>
-                                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                                                <Typography variant="body2" sx={{fontWeight: 700}}>
                                                                     {phone}
                                                                 </Typography>
-                                                                <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                                                                <Typography variant="caption" sx={{opacity: 0.8}}>
                                                                     {subtitle}
                                                                 </Typography>
                                                             </Stack>
-                                                            <Box sx={{ flexGrow: 1 }} />
+                                                            <Box sx={{flexGrow: 1}}/>
                                                             {r?.message_id && (
                                                                 <Tooltip title="Copy message_id">
-                                                                    <IconButton size="small" onClick={() => copyResult(r.message_id)}>
-                                                                        <ContentCopyIcon fontSize="inherit" />
+                                                                    <IconButton size="small"
+                                                                                onClick={() => copyResult(r.message_id)}>
+                                                                        <ContentCopyIcon fontSize="inherit"/>
                                                                     </IconButton>
                                                                 </Tooltip>
                                                             )}
                                                             {r?.external_message_id && (
                                                                 <Tooltip title="Copy external_message_id">
-                                                                    <IconButton size="small" onClick={() => copyResult(r.external_message_id)}>
-                                                                        <ContentCopyIcon fontSize="inherit" />
+                                                                    <IconButton size="small"
+                                                                                onClick={() => copyResult(r.external_message_id)}>
+                                                                        <ContentCopyIcon fontSize="inherit"/>
                                                                     </IconButton>
                                                                 </Tooltip>
                                                             )}
@@ -490,8 +510,9 @@ export default function WhatsappSendoutsPage() {
                             )}
 
                             {/* Small note */}
-                            <Typography variant="caption" sx={{ opacity: 0.65 }}>
-                                All numbers are normalized (leading <code>+</code> removed). The queue auto-throttles on 429/5xx and retries up to {MAX_ATTEMPTS} times.
+                            <Typography variant="caption" sx={{opacity: 0.65}}>
+                                All numbers are normalized (leading <code>+</code> removed). The queue auto-throttles on
+                                429/5xx and retries up to {MAX_ATTEMPTS} times.
                             </Typography>
                         </Stack>
                     </Paper>
@@ -499,16 +520,16 @@ export default function WhatsappSendoutsPage() {
             </Container>
 
             {/* Activity toasts (animated, stacked) */}
-            <Box sx={{ position: "fixed", right: 16, bottom: 16, zIndex: 1400, width: 360, pointerEvents: "none" }}>
+            <Box sx={{position: "fixed", right: 16, bottom: 16, zIndex: 1400, width: 360, pointerEvents: "none"}}>
                 <AnimatePresence>
                     {events.slice(-5).map((e) => (
                         <motion.div
                             key={e.id}
-                            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                            style={{ marginTop: 8 }}
+                            initial={{opacity: 0, y: 20, scale: 0.98}}
+                            animate={{opacity: 1, y: 0, scale: 1}}
+                            exit={{opacity: 0, y: 10, scale: 0.98}}
+                            transition={{type: "spring", stiffness: 260, damping: 20}}
+                            style={{marginTop: 8}}
                         >
                             <Paper
                                 elevation={3}
@@ -530,7 +551,7 @@ export default function WhatsappSendoutsPage() {
                                     pointerEvents: "auto"
                                 }}
                             >
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                <Typography variant="body2" sx={{fontWeight: 600}}>
                                     {e.text}
                                 </Typography>
                             </Paper>
@@ -540,7 +561,35 @@ export default function WhatsappSendoutsPage() {
             </Box>
 
             {/* Stats popup */}
-            <StatsDialog open={openStats} onClose={() => setOpenStats(false)} />
+            <StatsDialog open={openStats} onClose={() => setOpenStats(false)}/>
+
+            {/* Confirm sendout dialog */}
+            <Dialog
+                open={openConfirm}
+                onClose={() => setOpenConfirm(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle sx={{fontWeight: 800}}>Confirm sendout</DialogTitle>
+                <DialogContent dividers sx={{textAlign: "center", py: 4}}>
+                    <Typography variant="h6" sx={{fontWeight: 700}}>
+                        You are sending template{" "}
+                        <Box component="span" sx={{color: "primary.main"}}>
+                            {selectedTemplate || "—"}
+                        </Box>{" "}
+                        to {recipientList.length} numbers.
+                    </Typography>
+                    <Typography variant="body1" sx={{mt: 1.5, opacity: 0.8}}>
+                        Are you sure?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenConfirm(false)}>Cancel</Button>
+                    <Button variant="contained" startIcon={<SendRoundedIcon/>} onClick={doSend}>
+                        Yes, send now
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }
